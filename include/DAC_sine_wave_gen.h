@@ -59,6 +59,11 @@ void DAC_analogWrite_B0_B7(uint8_t _dat1)
 
 void DAC_sine_wave(int _frequency0)
 {
+  /*
+  This Calculation method is not accurate only in mid value 
+  Test Result: Set-> 512Hz, Measured -> 555Hz(100Hz & 1KHz are okay)
+  NOTE: As of Now, this is enough to continue planned task.
+  */
   int time_us = 1000000 / (_frequency0 * _no_of_sample_per_sine); // Microseconds
   uint32_t _temp1_ovf = CPU_FREQ / _timer1_prescaler; // For one seconds time
   _temp1_ovf *= time_us;
