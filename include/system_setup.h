@@ -4,18 +4,24 @@
 #include "Arduino.h"
 #include "DAC_sine_wave_gen.h"
 #include <HardwareSerial.h>
-#include <SoftWire.h>
 
 // UART
 HardwareSerial Serial_debug(PA_10, PA_9); //(RX, TX)
-// I2C
-SoftWire Wire2(PA3, PA4); // SDA = PA3, SCL = PA4
+
+// List of Variable to pass from System setup
+struct system_data
+{
+    bool hold_btn, sp_btn, rcl_btn; // Tell the 3 button status(via polling)
+    uint16_t set_freq;
+    bool led_state;
+};
+system_data back_end_data;
 
 // Define and initialize global variables
 float _fw0_version = 0.1;
 bool ledstate = 1;
 int test_frequency = 100;
-volatile bool btn1_hold_flag = 0, btn2_sp_flag = 0, btn3_rcl_flag = 0;
+volatile bool _btn1_hold_flag = 0, _btn2_sp_flag = 0, _btn3_rcl_flag = 0;
 
 #define SCREEN_ADDRESS 0x3C
 
@@ -64,21 +70,6 @@ void int_system_setup(float _fw_ver)
 
     Serial_debug.begin(115200);
 
-    Wire2.begin();
-    delay(1000);
-
-    Serial_debug.print("Calling the Slave at 0x");
-    Serial_debug.println(SCREEN_ADDRESS, HEX);
-    Wire2.beginTransmission(SCREEN_ADDRESS);
-    byte error1 = Wire2.endTransmission();
-    if (error1 == 0)
-        Serial_debug.println("Success!");
-    else
-    {
-        Serial_debug.print("Failed with error code: ");
-        Serial_debug.println(error1);
-    }
-
     timer1_setup();
     DAC_sine_wave(50); // Frequency - 50Hz
 }
@@ -87,22 +78,26 @@ void regular_task_loop()
 {
     on_button_press_event();
 
+    // Storing the data in passing variables
+    back_end_data.led_state = !ledstate;
+    back_end_data.set_freq = test_frequency;
+
     delay(10);
     // Serial_debug.print(SystemCoreClock);
 }
 
 void on_button_press_event()
 {
-    if (btn1_hold_flag || btn2_sp_flag || btn3_rcl_flag)
+    if (_btn1_hold_flag || _btn2_sp_flag || _btn3_rcl_flag)
     {
         Serial_debug.println("-----");
         Serial_debug.print("FW Version: V");
         Serial_debug.println(_fw0_version);
         Serial_debug.println(" ");
     }
-    if (btn1_hold_flag)
+    if (_btn1_hold_flag)
     {
-        btn1_hold_flag = 0;
+        _btn1_hold_flag = 0;
         ledstate = !ledstate;
         digitalWrite(LED_pin, !ledstate);
 
@@ -114,9 +109,9 @@ void on_button_press_event()
             Serial_debug.println("LED OFF");
         Serial_debug.println("--");
     }
-    if (btn2_sp_flag)
+    if (_btn2_sp_flag)
     {
-        btn2_sp_flag = 0;
+        _btn2_sp_flag = 0;
         if (test_frequency == 100)
             test_frequency = 512;
         else if (test_frequency == 512)
@@ -132,9 +127,9 @@ void on_button_press_event()
         Serial_debug.println(" Hz");
         Serial_debug.println("--");
     }
-    if (btn3_rcl_flag)
+    if (_btn3_rcl_flag)
     {
-        btn3_rcl_flag = 0;
+        _btn3_rcl_flag = 0;
 
         // Serial Output
         Serial_debug.println("Pressed Button 3");
@@ -144,15 +139,15 @@ void on_button_press_event()
 
 void btn1_hold_update()
 {
-    btn1_hold_flag = 1;
+    _btn1_hold_flag = 1;
 }
 void btn2_sp_update()
 {
-    btn2_sp_flag = 1;
+    _btn2_sp_flag = 1;
 }
 void btn3_rcl_update()
 {
-    btn3_rcl_flag = 1;
+    _btn3_rcl_flag = 1;
 }
 
 #endif
