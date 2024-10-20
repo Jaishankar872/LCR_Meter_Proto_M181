@@ -14,6 +14,7 @@ struct system_data
     bool hold_btn, sp_btn, rcl_btn; // Tell the 3 button status(via polling)
     uint16_t set_freq;
     bool led_state;
+    bool VI_measure_mode;
 };
 system_data back_end_data;
 
@@ -22,6 +23,7 @@ float _fw0_version = 0.1;
 bool ledstate = 1;
 int test_frequency = 100;
 volatile bool _btn1_hold_flag = 0, _btn2_sp_flag = 0, _btn3_rcl_flag = 0;
+bool GS_pin_state = 1, VI_pin_state = 0;// VI_measure_mode = 0;
 
 #define SCREEN_ADDRESS 0x3C
 
@@ -52,7 +54,6 @@ void int_system_setup(float _fw_ver)
     _fw0_version = _fw_ver;
     // ADC Input pin
     pinMode(ADC_pin, INPUT_ANALOG);
-    pinMode(AFC_pin, INPUT_ANALOG);
 
     // Button
     pinMode(BTN1_HOLD, INPUT_PULLUP);
@@ -67,6 +68,10 @@ void int_system_setup(float _fw_ver)
     pinMode(LED_pin, OUTPUT);
     pinMode(GS_pin, OUTPUT);
     pinMode(VI_pin, OUTPUT);
+    pinMode(AFC_pin, OUTPUT);
+    digitalWrite(AFC_pin, HIGH);
+    digitalWrite(GS_pin, GS_pin_state);
+    digitalWrite(VI_pin, VI_pin_state);
 
     Serial_debug.begin(115200);
 
@@ -99,14 +104,16 @@ void on_button_press_event()
     {
         _btn1_hold_flag = 0;
         ledstate = !ledstate;
-        digitalWrite(LED_pin, !ledstate);
+        digitalWrite(LED_pin, ledstate);
+        GS_pin_state = ledstate;
+        digitalWrite(GS_pin, GS_pin_state);
 
         // Serial Output
         Serial_debug.println("Pressed Button 1");
-        if (!ledstate)
-            Serial_debug.println("LED ON");
+        if (ledstate)
+            Serial_debug.println("LED ON 1-10");
         else
-            Serial_debug.println("LED OFF");
+            Serial_debug.println("LED OFF 1-1");
         Serial_debug.println("--");
     }
     if (_btn2_sp_flag)
@@ -130,9 +137,24 @@ void on_button_press_event()
     if (_btn3_rcl_flag)
     {
         _btn3_rcl_flag = 0;
-
         // Serial Output
         Serial_debug.println("Pressed Button 3");
+       back_end_data.VI_measure_mode = !back_end_data.VI_measure_mode;
+        if (back_end_data.VI_measure_mode)
+        {
+            Serial_debug.println("Mode: Voltage, Att: 1-10");
+            VI_pin_state = LOW;
+            GS_pin_state = HIGH;
+        }
+        else
+        {
+            Serial_debug.println("Mode: Current, Att: 1-1");
+            VI_pin_state = HIGH;
+            GS_pin_state = LOW;
+        }
+        digitalWrite(VI_pin, VI_pin_state);
+        digitalWrite(GS_pin, GS_pin_state);
+
         Serial_debug.println("--");
     }
 }
