@@ -8,6 +8,10 @@
 // UART
 HardwareSerial Serial_debug(PA_10, PA_9); //(RX, TX)
 
+// Timer for VI Mode Switch
+HardwareTimer timer2_VI_switch(TIM2); // Initialize timer TIM1
+uint32_t _timer2_prescaler = 72000;
+
 // List of Variable to pass from System setup
 struct system_data
 {
@@ -24,22 +28,23 @@ bool ledstate = 1;
 int test_frequency = 1000;
 volatile bool _btn1_hold_flag = 0, _btn2_sp_flag = 0, _btn3_rcl_flag = 0;
 bool GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
+volatile bool _VI_measure_mode = 0;
 
 // ADC Related function
 TIM_HandleTypeDef htim3;
 ADC_HandleTypeDef hadc1;
 
-uint16_t timer3_prescaler = 72;
-uint8_t adc_sample_rate = 20;
-volatile bool adcChanged = 0;
+uint16_t timer3_prescaler = 8;
+uint8_t adc_sample_rate = 40;
+volatile bool volt_data_record_ready = 0, current_data_record_ready = 0;
 unsigned long _timer3_record = 0, _adc_sample_time_gap = 0;
 
 const unsigned int adc_sample_interval_pa0 = 100; // MicroSeconds
 volatile bool print_if_adc_read = 0;
 
-const int _sample_size = 40;
+const int _sample_size = 80;
 int volt_sample_count = 0, current_sample_count = 0;
-int16_t volt_raw_data[40], current_raw_data[40];
+int16_t volt_raw_data[80], current_raw_data[80];
 
 #define SCREEN_ADDRESS 0x3C
 
@@ -68,6 +73,8 @@ void store_VI_data(int16_t _sdata, bool _mode0);
 void timer3_set_interval(int16_t _measure_freq, int _n_samples);
 void setup_timer3_ADC_PA0();
 
+void timer2_setup_VI();
+void OnTimer2Interrupt();
 /*----------------------------------------------------------------------*/
 
 // Function Definition
@@ -100,26 +107,29 @@ void int_system_setup(float _fw_ver)
     timer1_setup();
     set_measure_mode(0);           // Set measure as Voltage
     DAC_sine_wave(test_frequency); // Set default Frequency
+    back_end_data.set_freq = test_frequency;
 
     // (void)analogRead(ADC_pin);     // use one analogRead to setup pin correctly in analog mode
     setup_timer3_ADC_PA0(); // kick off timer to generate TRGO events and setup ADC
     timer3_set_interval(test_frequency, adc_sample_rate);
     HAL_ADC_Start_IT(&hadc1); // Start the ADC conversion
-    // timer2_time_gap(back_end_data.set_freq,10); // uSecs
+
+    timer2_setup_VI();
 }
 
 void regular_task_loop()
 {
     on_button_press_event();
 
-    // Storing the data in passing variables
-    back_end_data.led_state = !ledstate;
-    back_end_data.set_freq = test_frequency;
+    // Storing the data in passing variables  
+    back_end_data.VI_measure_mode=_VI_measure_mode; //Optional
 
-    delay(10);
+    // delay(1);
     // Serial_debug.print(SystemCoreClock);
 }
 
+/*----------------------------------------------------------------------*/
+// Addition function
 void on_button_press_event()
 {
     if (_btn1_hold_flag || _btn2_sp_flag) // || _btn3_rcl_flag)
@@ -134,16 +144,16 @@ void on_button_press_event()
         _btn1_hold_flag = 0;
         ledstate = !ledstate;
         digitalWrite(LED_pin, ledstate);
-        GS_pin_state = ledstate;
         digitalWrite(GS_pin, GS_pin_state);
 
         // Serial Output
         Serial_debug.println("Pressed Button 1");
         if (ledstate)
-            Serial_debug.println("LED ON 1-10");
+            Serial_debug.println("LED ON");
         else
-            Serial_debug.println("LED OFF 1-1");
+            Serial_debug.println("LED OFF");
         Serial_debug.println("--");
+        back_end_data.led_state = ledstate;
     }
     if (_btn2_sp_flag)
     {
@@ -158,6 +168,7 @@ void on_button_press_event()
 
         DAC_sine_wave(test_frequency);
         timer3_set_interval(test_frequency, adc_sample_rate);
+        back_end_data.set_freq = test_frequency;
 
         // Serial Output
         Serial_debug.println("Pressed Button 2");
@@ -169,18 +180,23 @@ void on_button_press_event()
     if (_btn3_rcl_flag)
     {
         _btn3_rcl_flag = 0;
-        Serial_debug.print("ADC sample time gap = ");
+        Serial_debug.print("ADC sample time gap uS = ");
         Serial_debug.println(_adc_sample_time_gap);
+
         for (int _c1 = 0; _c1 < _sample_size; _c1++)
             Serial_debug.println(volt_raw_data[_c1]);
+        Serial_debug.println("Voltage DATA");
+        for (int _c1 = 0; _c1 < _sample_size; _c1++)
+            Serial_debug.println(current_raw_data[_c1]);
+        Serial_debug.println("Current DATA");
     }
     if (0) //_btn3_rcl_flag) Disabled
     {
         _btn3_rcl_flag = 0;
         // Serial Output
         Serial_debug.println("Pressed Button 3");
-        // back_end_data.VI_measure_mode = !back_end_data.VI_measure_mode;
-        // set_measure_mode(back_end_data.VI_measure_mode);
+        // _VI_measure_mode = !_VI_measure_mode;
+        // set_measure_mode(_VI_measure_mode);
         Serial_debug.println("--");
     }
 }
@@ -197,19 +213,21 @@ void btn3_rcl_update()
 {
     _btn3_rcl_flag = 1;
 }
+
+// VI Measure mode controlled by Timer 2 Interrupt
 void set_measure_mode(bool _mode1)
 {
     // 0 - Voltage Mode
     // 1 - Current mode
     if (!_mode1)
     {
-        Serial_debug.println("Mode: Voltage, Att: 1-10");
+        // Serial_debug.println("Mode: Voltage, Att: 1-10");
         VI_pin_state = LOW;
         GS_pin_state = HIGH;
     }
     else
     {
-        Serial_debug.println("Mode: Current, Att: 1-1");
+        // Serial_debug.println("Mode: Current, Att: 1-1");
         VI_pin_state = HIGH;
         GS_pin_state = LOW;
     }
@@ -308,7 +326,7 @@ void setup_timer3_ADC_PA0()
     //--------------------------------------------------------------------------------------------
 }
 
-/* interrupt handler for ADC */
+// interrupt handler for ADC
 extern "C" void ADC1_2_IRQHandler(void)
 {
     HAL_ADC_IRQHandler(&hadc1);
@@ -319,17 +337,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     if (hadc->Instance == ADC1)
     {
         int16_t adc_pa0 = HAL_ADC_GetValue(hadc);
-        store_VI_data(adc_pa0, 0); // Store Voltage data
-        adcChanged = 1;
+        store_VI_data(adc_pa0, _VI_measure_mode); // Store Voltage data
     }
 }
 
 void store_VI_data(int16_t _sdata, bool _mode0)
 {
+    _adc_sample_time_gap += (micros() - _timer3_record);
+    _adc_sample_time_gap /= 2;
+    _timer3_record = micros();
     if (!_mode0)
     {
-        _adc_sample_time_gap = micros() - _timer3_record;
-        _timer3_record = micros();
         if (volt_sample_count < _sample_size)
         {
             volt_raw_data[volt_sample_count] = _sdata;
@@ -337,12 +355,41 @@ void store_VI_data(int16_t _sdata, bool _mode0)
         }
         else
         {
-            // volt_sample_count = 0;
-            for (int _c = 0; _c < (_sample_size - 1); _c++)
-                volt_raw_data[_c] = volt_raw_data[_c + 1];
-            volt_raw_data[_sample_size - 1] = _sdata;
+            volt_sample_count = 0;
+            // for (int _c = 0; _c < (_sample_size - 1); _c++)
+            //     volt_raw_data[_c] = volt_raw_data[_c + 1];
+            // volt_raw_data[_sample_size - 1] = _sdata;
+        }
+    }
+    else
+    {
+        if (current_sample_count < _sample_size)
+        {
+            current_raw_data[current_sample_count] = _sdata;
+            current_sample_count++;
+        }
+        else
+        {
+            current_sample_count = 0;
+            // for (int _c = 0; _c < (_sample_size - 1); _c++)
+            //     current_raw_data[_c] = current_raw_data[_c + 1];
+            // current_raw_data[_sample_size - 1] = _sdata;
         }
     }
 }
 
+void timer2_setup_VI()
+{
+    timer2_VI_switch.setPrescaleFactor(_timer2_prescaler); // 72MHZ/72000 = 10+kHz
+    timer2_VI_switch.setOverflow(500);                     // Trigger every 500mS
+    timer2_VI_switch.attachInterrupt(OnTimer2Interrupt);
+    timer2_VI_switch.refresh();
+    timer2_VI_switch.resume();
+}
+
+void OnTimer2Interrupt()
+{
+    _VI_measure_mode = !_VI_measure_mode;
+    set_measure_mode(_VI_measure_mode);
+}
 #endif

@@ -73,10 +73,10 @@ void data_display(system_data display)
     if (previous_data_display.VI_measure_mode != display.VI_measure_mode || _run1_one_time_print)
     {
         oled.setTextXY(3, 6);
-        if (display.VI_measure_mode)
-            oled.putString("Volt/10");
+        if (!display.VI_measure_mode)
+            oled.putString("**");
         else
-            oled.putString("Amp/1    ");
+            oled.putString("  ");
     }
     _run1_one_time_print = 0;        // Clear the one run va
     previous_data_display = display; // Recording the previous data
