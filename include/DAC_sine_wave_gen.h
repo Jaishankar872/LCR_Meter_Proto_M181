@@ -10,12 +10,12 @@ HardwareTimer timer1_DAC(TIM1); // Initialize timer TIM1
 uint16_t _timer1_prescaler = 2;
 
 // DAC Sine data generated
-int sine_data[300];
-uint16_t _no_of_sample_per_sine = 200;
+int sine_data[100];
+uint16_t _no_of_sample_per_sine = 100;
 uint8_t DAC_resolution_bit = 8;
 int _pos_sine_data = 0;
 
-//Function Declaration
+// Function Declaration
 void generate_sine_wave_data();
 void DAC_pinMode_B0_B7(uint8_t _pinmode0);
 void DAC_analogWrite_B0_B7(uint8_t _dat1);
@@ -60,12 +60,12 @@ void DAC_analogWrite_B0_B7(uint8_t _dat1)
 void DAC_sine_wave(int _frequency0)
 {
   /*
-  This Calculation method is not accurate only in mid value 
+  This Calculation method is not accurate only in mid value
   Test Result: Set-> 512Hz, Measured -> 555Hz(100Hz & 1KHz are okay)
   NOTE: As of Now, this is enough to continue planned task.
   */
   int time_us = 1000000 / (_frequency0 * _no_of_sample_per_sine); // Microseconds
-  uint32_t _temp1_ovf = CPU_FREQ / _timer1_prescaler; // For one seconds time
+  uint32_t _temp1_ovf = CPU_FREQ / _timer1_prescaler;          // For one seconds time
   _temp1_ovf *= time_us;
 
   _temp1_ovf /= 1000; // uS -> mS
@@ -79,7 +79,7 @@ void DAC_sine_wave(int _frequency0)
 void timer1_setup()
 {
   timer1_DAC.setPrescaleFactor(_timer1_prescaler);
-  DAC_sine_wave(100);//timer1_DAC.setOverflow(32761);
+  DAC_sine_wave(100); // timer1_DAC.setOverflow(32761);
   timer1_DAC.attachInterrupt(OnTimer1Interrupt);
   timer1_DAC.refresh();
   timer1_DAC.resume();
