@@ -47,6 +47,10 @@ void data_display(system_data display)
         oled.putString("LED ");
         oled.setTextXY(_line_no1 + 2, 1); // Set cursor position, start of line 0
         oled.putString("Mode ");
+        oled.setTextXY(_line_no1 + 3, 1); // Set cursor position, start of line 0
+        oled.putString("Volt ");
+        oled.setTextXY(_line_no1 + 4, 1); // Set cursor position, start of line 0
+        oled.putString("Amp: ");
     }
 
     if (previous_data_display.set_freq != display.set_freq || _run1_one_time_print)
@@ -73,10 +77,17 @@ void data_display(system_data display)
     if (previous_data_display.VI_measure_mode != display.VI_measure_mode || _run1_one_time_print)
     {
         oled.setTextXY(3, 6);
-        if (!display.VI_measure_mode)
+        if (display.VI_measure_mode % 2)
             oled.putString("**");
         else
             oled.putString("  ");
+    }
+    if (previous_data_display.pk_pk_voltage != display.pk_pk_voltage || _run1_one_time_print)
+    {
+        oled.setTextXY(4, 6);
+        oled.putFloat(display.pk_pk_voltage);
+        oled.setTextXY(5, 6);
+        oled.putFloat(display.pk_pk_current);
     }
     _run1_one_time_print = 0;        // Clear the one run va
     previous_data_display = display; // Recording the previous data

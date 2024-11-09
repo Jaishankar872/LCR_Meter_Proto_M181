@@ -14,25 +14,45 @@ project_root/
 *  LOW - Voltage Measurement Mode
 * HIGH - Current Measurement Mode
 ### GS Pin
-*  LOW - 1:1 Output 
-* HIGH - 1:10 Output (Signal Reduced by 10 time) 
-### Truth Table
-| Function | VI   | GS   |
-|----------|------|------|
-| Volt     | LOW  | HIGH |
-| Current  | HIGH | LOW  |
+*  LOW - Discharge bus 
+* HIGH - Measuring Mode
+### VI Pin
+| Function | VI   |
+|----------|------|
+| Volt     | LOW  |
+| Current  | HIGH |
 
 ### AFC Pin
 * HIGH - In M181 always same
 
+## Interrupt Scheme
+### Timer 1 Interrupt
+  Generator Sine Wave via digital pin PB0 to PB7.
+  Timer Specs 
+   - Prescaler: 2
+   - Interval: (1/frequency)*(1/100)
+### Timer 2 Interrupt
+  VI Measurement toggle switch.
+  Timer Specs 
+   - Prescaler: 72000
+   - Interval: 250ms
+### Timer 3 Interrupt
+  To trigger ADC start measurement via TGRO in ADC. 
+  Timer Specs 
+   - Prescaler: 8
+   - Interval: (1/frequency)*(1/40)
+### ADC conversion Interrupt
+  To store the ADC measured data respective variable array.
+  Controlled via Timer 3 Interrupt.
+
 # Signal Processing Method
 
 RAW ADC signal processing
- 1. Check any mistake in captured ADC data. If yes return as a Error.
- 2. Low pass filtering.
- 3. Removing the offset voltage from the data.
- 4. Measure the frequency and amplitude of signal.Convert ADC value into voltage value.
- 5. Put the scaling factor to convert into actual voltage and current value. 
+ 1. Copy & check any mistake in captured ADC data & Return error.
+ 2. Calculate Amplitude of signal, remove offset.
+ 3. 
+ 4. 
+ 5. 
 ----
 
 

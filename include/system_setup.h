@@ -12,6 +12,7 @@ HardwareSerial Serial_debug(PA_10, PA_9); //(RX, TX)
 // Timer for VI Mode Switch
 HardwareTimer timer2_VI_switch(TIM2); // Initialize timer TIM1
 uint32_t _timer2_prescaler = 72000;
+// int8_t _timer2_int_counter = 0;
 
 // List of Variable to pass from System setup
 struct system_data
@@ -19,7 +20,8 @@ struct system_data
     bool hold_btn, sp_btn, rcl_btn; // Tell the 3 button status(via polling)
     uint16_t set_freq;
     bool led_state;
-    bool VI_measure_mode;
+    int8_t VI_measure_mode;
+    float pk_pk_voltage, pk_pk_current;
 };
 system_data back_end_data;
 
@@ -29,7 +31,7 @@ bool ledstate = 1;
 int test_frequency = 1000;
 volatile bool _btn1_hold_flag = 0, _btn2_sp_flag = 0, _btn3_rcl_flag = 0;
 bool GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
-volatile bool _VI_measure_mode = 0;
+volatile int8_t _VI_measure_mode = 1;
 
 // ADC Related function
 TIM_HandleTypeDef htim3;
@@ -46,6 +48,7 @@ volatile bool print_if_adc_read = 0;
 
 const int _sample_size = 80;
 int volt_sample_count = 0, current_sample_count = 0;
+bool measure_volt_flag = 0, measure_current_flag = 0;
 int16_t volt_raw_data[80], current_raw_data[80];
 
 #define SCREEN_ADDRESS 0x3C
@@ -68,20 +71,22 @@ void btn1_hold_update();
 void btn2_sp_update();
 void btn3_rcl_update();
 void on_button_press_event();
-void set_measure_mode(bool _mode1);
+void set_measure_mode(int8_t _mode1);
 
 // ADC Related function
-void store_VI_data(int16_t _sdata, bool _mode0);
+void store_VI_data(int16_t _sdata);
 void timer3_set_interval(int16_t _measure_freq, int _n_samples);
 void setup_timer3_ADC_PA0();
 
 void timer2_setup_VI();
 void OnTimer2Interrupt();
+bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, uint8_t _max_data_size);
 
-// Variable Declaration - For DSP 
+// Variable Declaration - For DSP
 int8_t _data_copy_check = 0;
 int16_t volt_adc_data[80], current_adc_data[80];
 bool adc_data_process_going = 0;
+bool _dsp_serial_print0 = 0;
 
 /*----------------------------------------------------------------------*/
 
@@ -133,7 +138,12 @@ void regular_task_loop()
 
     // Storing the data in passing variables
     back_end_data.VI_measure_mode = _VI_measure_mode; // Optional
-
+    if (_VI_measure_mode == 1)
+    {
+        adc_capture_data_enable = 0; // STOP: ADC Capturing the data
+        process_adc_data(volt_raw_data, current_raw_data, _sample_size);
+        adc_capture_data_enable = 1;
+    }
     // delay(1);
     // Serial_debug.print(SystemCoreClock);
 }
@@ -206,10 +216,8 @@ void on_button_press_event()
         //     Serial_debug.println(current_raw_data[_c1]);
         // Serial_debug.println("Current DATA");
         // DSP processing function
-        Serial_debug.println("DSP Started");
-        adc_capture_data_enable = 0; // STOP: ADC Capturing the data
-        Serial_debug.println(process_adc_data(volt_raw_data, current_raw_data, _sample_size));
-        adc_capture_data_enable = 1;
+        Serial_debug.println("DSP Print Enable one time");
+        _dsp_serial_print0 = 1;
     }
 }
 
@@ -227,24 +235,69 @@ void btn3_rcl_update()
 }
 
 // VI Measure mode controlled by Timer 2 Interrupt
-void set_measure_mode(bool _mode1)
+void set_measure_mode(int8_t _mode1)
 {
-    // 0 - Voltage Mode ** Chech this comment
-    // 1 - Current mode
-    if (!_mode1)
+    /*
+    +----------------------+
+    <1> - Discharge for Voltage Measure
+    <2> - Set Voltage Mode
+    <3> - Measure Voltage ****
+    <4> - Discharge for Current Measure
+    <5> - Set Current Mode
+    <6> - Measure Current ****
+    |---------------------------|
+    | Discharge | Set | Measure |
+    |---------------------------|
+    */
+    switch (_mode1)
     {
-        // Serial_debug.println("Mode: Voltage, Att: 1-10");
+    case 1:
+        // 1. Discharge for Voltage Measure
+        VI_pin_state = LOW;
+        GS_pin_state = LOW;
+        break;
+    case 2:
+        // 2. Set Voltage Mode
         VI_pin_state = LOW;
         GS_pin_state = HIGH;
-    }
-    else
-    {
-        // Serial_debug.println("Mode: Current, Att: 1-1");
+        break;
+    case 3:
+        // 3. Measure Voltage
+        measure_volt_flag = 1; // Start Measurement
+        measure_current_flag = 0;
+        break;
+    case 4:
+        // 4. Discharge for Current Measure
         VI_pin_state = HIGH;
         GS_pin_state = LOW;
+        break;
+    case 5:
+        // 5.Set Current Mode
+        VI_pin_state = HIGH;
+        GS_pin_state = HIGH;
+        break;
+    case 6:
+        // 6. Measure Current
+        measure_volt_flag = 0;
+        measure_current_flag = 1; // Start Measurement
+        break;
+    default:
+        // Add Fail safe step
+        // Do Nothing -> Stop the ADC data capturing volt/current data
+        measure_volt_flag = 0;
+        measure_current_flag = 0;
+        break;
     }
-    digitalWrite(VI_pin, VI_pin_state);
-    digitalWrite(GS_pin, GS_pin_state);
+
+    if (_mode1 % 3 != 0)
+    {
+        // Stop Measurement
+        measure_volt_flag = 0;
+        measure_current_flag = 0;
+        // Set the Mode
+        digitalWrite(VI_pin, VI_pin_state);
+        digitalWrite(GS_pin, GS_pin_state);
+    }
 }
 
 // ADC Related function
@@ -350,16 +403,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     {
         int16_t adc_pa0 = HAL_ADC_GetValue(hadc);
         if (adc_capture_data_enable)
-            store_VI_data(adc_pa0, _VI_measure_mode); // Store Voltage data
+            if (measure_volt_flag || measure_current_flag)
+                store_VI_data(adc_pa0); // Store Voltage data
     }
 }
 
-void store_VI_data(int16_t _sdata, bool _mode0)
+void store_VI_data(int16_t _sdata)
 {
     _adc_sample_time_gap += (micros() - _timer3_record);
     _adc_sample_time_gap /= 2;
     _timer3_record = micros();
-    if (!_mode0)
+    if (measure_volt_flag)
     {
         if (volt_sample_count < _sample_size)
         {
@@ -374,7 +428,7 @@ void store_VI_data(int16_t _sdata, bool _mode0)
             // volt_raw_data[_sample_size - 1] = _sdata;
         }
     }
-    else
+    else if (measure_current_flag)
     {
         if (current_sample_count < _sample_size)
         {
@@ -393,8 +447,8 @@ void store_VI_data(int16_t _sdata, bool _mode0)
 
 void timer2_setup_VI()
 {
-    timer2_VI_switch.setPrescaleFactor(_timer2_prescaler); // 72MHZ/72000 = 10+kHz
-    timer2_VI_switch.setOverflow(500);                     // Trigger every 500mS
+    timer2_VI_switch.setPrescaleFactor(_timer2_prescaler); // 72MHZ/72000 = 10kHz
+    timer2_VI_switch.setOverflow(2500);                    // Trigger every 250mS
     timer2_VI_switch.attachInterrupt(OnTimer2Interrupt);
     timer2_VI_switch.refresh();
     timer2_VI_switch.resume();
@@ -402,7 +456,21 @@ void timer2_setup_VI()
 
 void OnTimer2Interrupt()
 {
-    _VI_measure_mode = !_VI_measure_mode;
+    // _timer2_int_counter++;
+    // if (_VI_measure_mode % 3 != 0)
+    // {
+    //     c
+    //     _timer2_int_counter = 0;
+    // }
+    // else if (_timer2_int_counter >= 2)
+    // {
+    //     _VI_measure_mode++;
+    //     _timer2_int_counter = 0;
+    // }
+    _VI_measure_mode++;
+    if (_VI_measure_mode == 7)
+        _VI_measure_mode = 1;
+    // _VI_measure_mode = !_VI_measure_mode;
     set_measure_mode(_VI_measure_mode);
 }
 
@@ -411,20 +479,24 @@ bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, uint8_t _max_data_s
     uint8_t error_voltage_adc_data = 0, error_current_adc_data = 0;
     int8_t _size_of_array = _max_data_size;
 
-    Serial_debug.println("1. DATA Vaildation & Copy");
-    Serial_debug.print("1.1 Voltage, Return: ");
     error_voltage_adc_data = copy_raw_data_input(_volt_a, volt_adc_data, _size_of_array);
-    Serial_debug.println(error_voltage_adc_data);
-    Serial_debug.print("1.2 Current, Return: ");
     error_current_adc_data = copy_raw_data_input(_current_a, current_adc_data, _size_of_array);
-    Serial_debug.println(error_current_adc_data);
+    // if (!error_voltage_adc_data && !error_current_adc_data)
+    //     _data_copy_check = 1;
+    // else
+    //     _data_copy_check = 0;
+    _data_copy_check = 1;
 
-    if (!error_voltage_adc_data && !error_current_adc_data)
-        _data_copy_check = 1;
-    else
-        _data_copy_check = 0;
+    if (_dsp_serial_print0)
+    {
+        Serial_debug.println("1. DATA Vaildation & Copy");
+        Serial_debug.print("1.1 Voltage, Return: ");
+        Serial_debug.println(error_voltage_adc_data);
+        Serial_debug.print("1.2 Current, Return: ");
+        Serial_debug.println(error_current_adc_data);
+    }
 
-    if (1)
+    if (_dsp_serial_print0 && 1)
     {
         Serial_debug.println("---*");
         for (int _c1 = 0; _c1 < _sample_size; _c1++)
@@ -435,32 +507,26 @@ bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, uint8_t _max_data_s
         Serial_debug.println("Current DATA");
     }
 
-    if (!_data_copy_check)
-        Serial_debug.println("2. Issue in Copied Data");
-    else
+    if (_data_copy_check)
     {
-        Serial_debug.println("2. Start Low pass filter");
-        Serial_debug.print("2.1 Voltage, Return: ");
-        Serial_debug.println(filter_low_pass(volt_adc_data, _size_of_array));
-        Serial_debug.print("2.2 Current, Return: ");
-        Serial_debug.println(filter_low_pass(current_adc_data, _size_of_array));
+        back_end_data.pk_pk_voltage = calculate_voltage(volt_adc_data, _adc_sample_time_gap, _size_of_array);
+        back_end_data.pk_pk_current = calculate_voltage(current_adc_data, _adc_sample_time_gap, _size_of_array);
 
-        Serial_debug.println("3. Offset Removable");
-        Serial_debug.print("3.1 Voltage, Return: ");
-        int16_t _adc_volt_offset = remove_data_offset(volt_adc_data, _size_of_array);
-        Serial_debug.println(_adc_volt_offset);
-        Serial_debug.print("3.2 Current, Return: ");
-        int16_t _adc_current_offset = remove_data_offset(current_adc_data, _size_of_array);
-        Serial_debug.println(_adc_current_offset);
-
-        Serial_debug.println("4. Measure Amplitude & Frequecy");
-        Serial_debug.print("4.1 Voltage=");
-        Serial_debug.print(measure_rms_value(volt_adc_data, _adc_sample_time_gap, _size_of_array));
-        Serial_debug.println(" V");
-        Serial_debug.print("4.2 Current=");
-        Serial_debug.print(measure_rms_value(current_adc_data, _adc_sample_time_gap, _size_of_array));
-        Serial_debug.println(" V");
+        if (_dsp_serial_print0)
+        {
+            Serial_debug.println("2. Measure Amplitude & Frequecy");
+            Serial_debug.print("2.1 Voltage=");
+            Serial_debug.print(back_end_data.pk_pk_voltage);
+            Serial_debug.println(" V");
+            Serial_debug.print("2.2 Current=");
+            Serial_debug.print(back_end_data.pk_pk_current);
+            Serial_debug.println(" V");
+        }
     }
+    else if (_dsp_serial_print0)
+        Serial_debug.println("2. Error found in Copied Data");
+
+    _dsp_serial_print0 = 0; // Reset the Serial print flag
     return 0;
 }
 
