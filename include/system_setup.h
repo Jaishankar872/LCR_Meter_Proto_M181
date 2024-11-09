@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #include "DAC_sine_wave_gen.h"
+#include "DSP_ADC_data.h"
 #include <HardwareSerial.h>
 
 // UART
@@ -34,6 +35,7 @@ volatile bool _VI_measure_mode = 0;
 TIM_HandleTypeDef htim3;
 ADC_HandleTypeDef hadc1;
 
+volatile bool adc_capture_data_enable = 1;
 uint16_t timer3_prescaler = 8;
 uint8_t adc_sample_rate = 40;
 volatile bool volt_data_record_ready = 0, current_data_record_ready = 0;
@@ -75,6 +77,12 @@ void setup_timer3_ADC_PA0();
 
 void timer2_setup_VI();
 void OnTimer2Interrupt();
+
+// Variable Declaration - For DSP 
+int8_t _data_copy_check = 0;
+int16_t volt_adc_data[80], current_adc_data[80];
+bool adc_data_process_going = 0;
+
 /*----------------------------------------------------------------------*/
 
 // Function Definition
@@ -98,6 +106,8 @@ void int_system_setup(float _fw_ver)
     pinMode(GS_pin, OUTPUT);
     pinMode(VI_pin, OUTPUT);
     pinMode(AFC_pin, OUTPUT);
+
+    digitalWrite(LED_pin, ledstate);
     digitalWrite(AFC_pin, HIGH);
     digitalWrite(GS_pin, GS_pin_state);
     digitalWrite(VI_pin, VI_pin_state);
@@ -121,8 +131,8 @@ void regular_task_loop()
 {
     on_button_press_event();
 
-    // Storing the data in passing variables  
-    back_end_data.VI_measure_mode=_VI_measure_mode; //Optional
+    // Storing the data in passing variables
+    back_end_data.VI_measure_mode = _VI_measure_mode; // Optional
 
     // delay(1);
     // Serial_debug.print(SystemCoreClock);
@@ -180,24 +190,26 @@ void on_button_press_event()
     if (_btn3_rcl_flag)
     {
         _btn3_rcl_flag = 0;
+        Serial_debug.println(" ");
+        Serial_debug.print("Current ADC Record Status -> ");
+        if (adc_capture_data_enable)
+            Serial_debug.println("ENABLED");
+        else
+            Serial_debug.println("Disabled");
         Serial_debug.print("ADC sample time gap uS = ");
         Serial_debug.println(_adc_sample_time_gap);
 
-        for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(volt_raw_data[_c1]);
-        Serial_debug.println("Voltage DATA");
-        for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(current_raw_data[_c1]);
-        Serial_debug.println("Current DATA");
-    }
-    if (0) //_btn3_rcl_flag) Disabled
-    {
-        _btn3_rcl_flag = 0;
-        // Serial Output
-        Serial_debug.println("Pressed Button 3");
-        // _VI_measure_mode = !_VI_measure_mode;
-        // set_measure_mode(_VI_measure_mode);
-        Serial_debug.println("--");
+        // for (int _c1 = 0; _c1 < _sample_size; _c1++)
+        //     Serial_debug.println(volt_raw_data[_c1]);
+        // Serial_debug.println("Voltage DATA");
+        // for (int _c1 = 0; _c1 < _sample_size; _c1++)
+        //     Serial_debug.println(current_raw_data[_c1]);
+        // Serial_debug.println("Current DATA");
+        // DSP processing function
+        Serial_debug.println("DSP Started");
+        adc_capture_data_enable = 0; // STOP: ADC Capturing the data
+        Serial_debug.println(process_adc_data(volt_raw_data, current_raw_data, _sample_size));
+        adc_capture_data_enable = 1;
     }
 }
 
@@ -217,7 +229,7 @@ void btn3_rcl_update()
 // VI Measure mode controlled by Timer 2 Interrupt
 void set_measure_mode(bool _mode1)
 {
-    // 0 - Voltage Mode
+    // 0 - Voltage Mode ** Chech this comment
     // 1 - Current mode
     if (!_mode1)
     {
@@ -337,7 +349,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     if (hadc->Instance == ADC1)
     {
         int16_t adc_pa0 = HAL_ADC_GetValue(hadc);
-        store_VI_data(adc_pa0, _VI_measure_mode); // Store Voltage data
+        if (adc_capture_data_enable)
+            store_VI_data(adc_pa0, _VI_measure_mode); // Store Voltage data
     }
 }
 
@@ -392,4 +405,63 @@ void OnTimer2Interrupt()
     _VI_measure_mode = !_VI_measure_mode;
     set_measure_mode(_VI_measure_mode);
 }
+
+bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, uint8_t _max_data_size)
+{
+    uint8_t error_voltage_adc_data = 0, error_current_adc_data = 0;
+    int8_t _size_of_array = _max_data_size;
+
+    Serial_debug.println("1. DATA Vaildation & Copy");
+    Serial_debug.print("1.1 Voltage, Return: ");
+    error_voltage_adc_data = copy_raw_data_input(_volt_a, volt_adc_data, _size_of_array);
+    Serial_debug.println(error_voltage_adc_data);
+    Serial_debug.print("1.2 Current, Return: ");
+    error_current_adc_data = copy_raw_data_input(_current_a, current_adc_data, _size_of_array);
+    Serial_debug.println(error_current_adc_data);
+
+    if (!error_voltage_adc_data && !error_current_adc_data)
+        _data_copy_check = 1;
+    else
+        _data_copy_check = 0;
+
+    if (1)
+    {
+        Serial_debug.println("---*");
+        for (int _c1 = 0; _c1 < _sample_size; _c1++)
+            Serial_debug.println(volt_adc_data[_c1]);
+        Serial_debug.println("Voltage DATA");
+        for (int _c1 = 0; _c1 < _sample_size; _c1++)
+            Serial_debug.println(current_adc_data[_c1]);
+        Serial_debug.println("Current DATA");
+    }
+
+    if (!_data_copy_check)
+        Serial_debug.println("2. Issue in Copied Data");
+    else
+    {
+        Serial_debug.println("2. Start Low pass filter");
+        Serial_debug.print("2.1 Voltage, Return: ");
+        Serial_debug.println(filter_low_pass(volt_adc_data, _size_of_array));
+        Serial_debug.print("2.2 Current, Return: ");
+        Serial_debug.println(filter_low_pass(current_adc_data, _size_of_array));
+
+        Serial_debug.println("3. Offset Removable");
+        Serial_debug.print("3.1 Voltage, Return: ");
+        int16_t _adc_volt_offset = remove_data_offset(volt_adc_data, _size_of_array);
+        Serial_debug.println(_adc_volt_offset);
+        Serial_debug.print("3.2 Current, Return: ");
+        int16_t _adc_current_offset = remove_data_offset(current_adc_data, _size_of_array);
+        Serial_debug.println(_adc_current_offset);
+
+        Serial_debug.println("4. Measure Amplitude & Frequecy");
+        Serial_debug.print("4.1 Voltage=");
+        Serial_debug.print(measure_rms_value(volt_adc_data, _adc_sample_time_gap, _size_of_array));
+        Serial_debug.println(" V");
+        Serial_debug.print("4.2 Current=");
+        Serial_debug.print(measure_rms_value(current_adc_data, _adc_sample_time_gap, _size_of_array));
+        Serial_debug.println(" V");
+    }
+    return 0;
+}
+
 #endif
