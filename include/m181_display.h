@@ -86,6 +86,9 @@ void data_display(system_data display)
     {
         oled.setTextXY(4, 6);
         oled.putFloat(display.pk_pk_voltage);
+    }
+    if (previous_data_display.pk_pk_current != display.pk_pk_current || _run1_one_time_print)
+    {
         oled.setTextXY(5, 6);
         oled.putFloat(display.pk_pk_current);
     }

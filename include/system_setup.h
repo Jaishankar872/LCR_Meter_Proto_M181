@@ -32,6 +32,7 @@ int test_frequency = 1000;
 volatile bool _btn1_hold_flag = 0, _btn2_sp_flag = 0, _btn3_rcl_flag = 0;
 bool GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
 volatile int8_t _VI_measure_mode = 1;
+bool auto_switch_VI_measure_mode = 1;
 
 // ADC Related function
 TIM_HandleTypeDef htim3;
@@ -110,10 +111,10 @@ void int_system_setup(float _fw_ver)
     pinMode(LED_pin, OUTPUT);
     pinMode(GS_pin, OUTPUT);
     pinMode(VI_pin, OUTPUT);
-    pinMode(AFC_pin, OUTPUT);
+    pinMode(AFC_pin, INPUT);// As per the testing JYETech FW.
 
     digitalWrite(LED_pin, ledstate);
-    digitalWrite(AFC_pin, HIGH);
+    //digitalWrite(AFC_pin, LOW); // As per the testing JYETech FW.
     digitalWrite(GS_pin, GS_pin_state);
     digitalWrite(VI_pin, VI_pin_state);
 
@@ -138,7 +139,7 @@ void regular_task_loop()
 
     // Storing the data in passing variables
     back_end_data.VI_measure_mode = _VI_measure_mode; // Optional
-    if (_VI_measure_mode == 1)
+    if (_VI_measure_mode == 1 || !auto_switch_VI_measure_mode)
     {
         adc_capture_data_enable = 0; // STOP: ADC Capturing the data
         process_adc_data(volt_raw_data, current_raw_data, _sample_size);
@@ -174,6 +175,7 @@ void on_button_press_event()
             Serial_debug.println("LED OFF");
         Serial_debug.println("--");
         back_end_data.led_state = ledstate;
+        auto_switch_VI_measure_mode = ledstate;
     }
     if (_btn2_sp_flag)
     {
@@ -217,6 +219,19 @@ void on_button_press_event()
         // Serial_debug.println("Current DATA");
         // DSP processing function
         Serial_debug.println("DSP Print Enable one time");
+        if (!auto_switch_VI_measure_mode)
+            if (_VI_measure_mode == 3)
+                _VI_measure_mode = 6;
+            else if (_VI_measure_mode == 6)
+                _VI_measure_mode = 3;
+            else
+                _VI_measure_mode = 3;
+        Serial_debug.print("VI_measure_mode -> ");
+        if (auto_switch_VI_measure_mode)
+            Serial_debug.print("AUTO -> ");
+        else
+            Serial_debug.print("Manunal -> ");
+        Serial_debug.println(_VI_measure_mode);
         _dsp_serial_print0 = 1;
     }
 }
@@ -249,6 +264,9 @@ void set_measure_mode(int8_t _mode1)
     | Discharge | Set | Measure |
     |---------------------------|
     */
+    if (!auto_switch_VI_measure_mode)
+        _mode1 -= 1; // To set control pins
+
     switch (_mode1)
     {
     case 1:
@@ -297,6 +315,21 @@ void set_measure_mode(int8_t _mode1)
         // Set the Mode
         digitalWrite(VI_pin, VI_pin_state);
         digitalWrite(GS_pin, GS_pin_state);
+    }
+    if (!auto_switch_VI_measure_mode)
+    {
+        if (_mode1 == 2)
+        {
+            // 3. Measure Voltage
+            measure_volt_flag = 1; // Start Measurement
+            measure_current_flag = 0;
+        }
+        else if (_mode1 == 5)
+        {
+            // 6. Measure Current
+            measure_volt_flag = 0;
+            measure_current_flag = 1; // Start Measurement
+        }
     }
 }
 
@@ -467,10 +500,12 @@ void OnTimer2Interrupt()
     //     _VI_measure_mode++;
     //     _timer2_int_counter = 0;
     // }
-    _VI_measure_mode++;
-    if (_VI_measure_mode == 7)
-        _VI_measure_mode = 1;
-    // _VI_measure_mode = !_VI_measure_mode;
+    if (auto_switch_VI_measure_mode)
+    {
+        _VI_measure_mode++;
+        if (_VI_measure_mode == 7)
+            _VI_measure_mode = 1;
+    }
     set_measure_mode(_VI_measure_mode);
 }
 

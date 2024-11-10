@@ -1,12 +1,12 @@
 # Program File structure
 project_root/
 ├── include/
-│   ├── system_setup.h
-│   └── DAC_sine_wave_gen.h
-├── src/
-│   ├── main.cpp
+│   ├── DAC_sine_wave_gen.h
+│   ├── DSP_ADC_data.h
 │   ├── m181_display.cpp
-│   └── DAC_sine_wave_gen.cpp
+│   └── system_setup.h
+├── src/
+│   └── main.cpp
 └── platformio.ini
 
 ## Pin Function Mode
@@ -23,7 +23,8 @@ project_root/
 | Current  | HIGH |
 
 ### AFC Pin
-* HIGH - In M181 always same
+* INPUT Pin - As per the testing JYETech FW.
+* This NOT is a output pin with neither LOW nor HIGH.
 
 ## Interrupt Scheme
 ### Timer 1 Interrupt
