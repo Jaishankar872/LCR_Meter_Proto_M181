@@ -111,10 +111,10 @@ void int_system_setup(float _fw_ver)
     pinMode(LED_pin, OUTPUT);
     pinMode(GS_pin, OUTPUT);
     pinMode(VI_pin, OUTPUT);
-    pinMode(AFC_pin, INPUT);// As per the testing JYETech FW.
+    pinMode(AFC_pin, INPUT); // As per the testing JYETech FW.
 
     digitalWrite(LED_pin, ledstate);
-    //digitalWrite(AFC_pin, LOW); // As per the testing JYETech FW.
+    // digitalWrite(AFC_pin, LOW); // As per the testing JYETech FW.
     digitalWrite(GS_pin, GS_pin_state);
     digitalWrite(VI_pin, VI_pin_state);
 
