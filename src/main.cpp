@@ -2,7 +2,7 @@
 #include "system_setup.h"
 #include "m181_display.h" //Display section are moved here
 
-#define fw_version 0.25
+#define fw_version 0.26
 
 // Experiment Section After moved to system_setup.h
 // Create a HardwareTimer instance for TIM2

@@ -1,5 +1,5 @@
 /*
-Code is for SSD1306 128x64 display
+To Process the captured ADC Raw Data
 */
 #ifndef DSP_ADC_DATA_H
 #define DSP_ADC_DATA_H

@@ -55,6 +55,10 @@ void data_display(system_data display)
         oled.putString("Amp: ");
         oled.setTextXY(_line_no1 + 4, 12); // Set cursor position, start of line 0
         oled.putString("V");
+        oled.setTextXY(_line_no1 + 5, 1); // Set cursor position, start of line 0
+        oled.putString("AFC: ");
+        oled.setTextXY(_line_no1 + 5, 12); // Set cursor position, start of line 0
+        oled.putString("V");
     }
 
     if (previous_data_display.set_freq != display.set_freq || _run1_one_time_print)
@@ -95,6 +99,11 @@ void data_display(system_data display)
     {
         oled.setTextXY(5, 6);
         oled.putFloat(display.pk_pk_current, 3);
+    }
+        if (previous_data_display.pk_pk_AFC != display.pk_pk_AFC || _run1_one_time_print)
+    {
+        oled.setTextXY(6, 6);
+        oled.putFloat(display.pk_pk_AFC, 3);
     }
     _run1_one_time_print = 0;        // Clear the one run va
     previous_data_display = display; // Recording the previous data
