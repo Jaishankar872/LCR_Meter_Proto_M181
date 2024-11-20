@@ -38,13 +38,15 @@ bool auto_switch_VI_measure_mode = 1;
 volatile bool volt_data_record_ready = 0, current_data_record_ready = 0;
 unsigned long _timer3_record = 0, _adc_sample_time_gap = 0;
 
-#define _sample_size  80
+#define _sample_size 80
 int volt_sample_count = 0, current_sample_count = 0;
 bool measure_volt_flag = 0, measure_current_flag = 0;
 int16_t volt_raw_data[_sample_size], current_raw_data[_sample_size];
 
-int AFC_sample_count = 0;
-int16_t AFC_raw_data[_sample_size];
+int AFC_sample_count_v = 0;
+int16_t AFC_raw_data_v[_sample_size];
+int AFC_sample_count_i = 0;
+int16_t AFC_raw_data_i[_sample_size];
 
 #define SCREEN_ADDRESS 0x3C
 
@@ -75,11 +77,12 @@ volatile bool AFC_adc_capture_data_enable = 1;
 
 void timer2_setup_VI();
 void OnTimer2Interrupt();
-bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a, uint8_t _max_data_size);
+bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a_v, int16_t *_AFC_a, uint8_t _max_data_size);
 
 // Variable Declaration - For DSP
 int8_t _data_copy_check = 0;
-int16_t volt_adc_data[_sample_size], current_adc_data[_sample_size], AFC_adc_data[_sample_size];
+int16_t volt_adc_data[_sample_size], current_adc_data[_sample_size];
+int16_t AFC_adc_data_v[_sample_size], AFC_adc_data_i[_sample_size];
 bool adc_data_process_going = 0;
 bool _dsp_serial_print0 = 0;
 
@@ -121,7 +124,7 @@ void int_system_setup(float _fw_ver)
     // (void)analogRead(ADC_pin);     // use one analogRead to setup pin correctly in analog mode
     setup_ADC1_PA1();
     setup_ADC2_PA0(); // kick off timer to generate TRGO events and setup ADC
-    int _time_us1 = timer3_set_interval(test_frequency, adc_sample_rate);
+    int _time_us1 = timer3_set_interval(test_frequency);
 
     timer2_setup_VI();
 
@@ -145,7 +148,7 @@ void regular_task_loop()
     if (_VI_measure_mode == 1 || !auto_switch_VI_measure_mode)
     {
         adc_capture_data_enable = 0; // STOP: ADC Capturing the data
-        process_adc_data(volt_raw_data, current_raw_data, AFC_raw_data, _sample_size);
+        process_adc_data(volt_raw_data, current_raw_data, AFC_raw_data_v, AFC_raw_data_i, _sample_size);
         adc_capture_data_enable = 1;
     }
     // delay(1);
@@ -192,7 +195,7 @@ void on_button_press_event()
         // test_frequency = 1000;
 
         DAC_sine_wave(test_frequency);
-        timer3_set_interval(test_frequency, adc_sample_rate);
+        timer3_set_interval(test_frequency);
         back_end_data.set_freq = test_frequency;
 
         // Serial Output
@@ -223,17 +226,19 @@ void on_button_press_event()
         // DSP processing function
         Serial_debug.println("DSP Print Enable one time");
         if (!auto_switch_VI_measure_mode)
+        {
             if (_VI_measure_mode == 3)
                 _VI_measure_mode = 6;
             else if (_VI_measure_mode == 6)
                 _VI_measure_mode = 3;
             else
                 _VI_measure_mode = 3;
+        }
         Serial_debug.print("VI_measure_mode -> ");
         if (auto_switch_VI_measure_mode)
             Serial_debug.print("AUTO -> ");
         else
-            Serial_debug.print("Manunal -> ");
+            Serial_debug.print("Manual -> ");
         Serial_debug.println(_VI_measure_mode);
         _dsp_serial_print0 = 1;
     }
@@ -362,29 +367,40 @@ void store_VI_data(int16_t _sdata)
     _timer3_record = micros();
     if (measure_volt_flag)
     {
+        volt_raw_data[volt_sample_count] = _sdata;
         if (volt_sample_count < _sample_size)
             volt_sample_count++;
-        else
+        if (volt_sample_count >= _sample_size)
             volt_sample_count = 0;
-        volt_raw_data[volt_sample_count] = _sdata;
     }
     else if (measure_current_flag)
     {
+        current_raw_data[current_sample_count] = _sdata;
         if (current_sample_count < _sample_size)
             current_sample_count++;
-        else
+        if (current_sample_count >= _sample_size)
             current_sample_count = 0;
-        current_raw_data[current_sample_count] = _sdata;
     }
 }
 
 void store_AFC_data(int16_t _sdata)
 {
-    if (AFC_sample_count < _sample_size)
-        AFC_sample_count++;
-    else
-        AFC_sample_count = 0;
-    AFC_raw_data[AFC_sample_count] = _sdata;
+    if (measure_volt_flag)
+    {
+        AFC_raw_data_v[AFC_sample_count_v] = _sdata;
+        if (AFC_sample_count_v < _sample_size)
+            AFC_sample_count_v++;
+        if (AFC_sample_count_v >= _sample_size)
+            AFC_sample_count_v = 0;
+    }
+    else if (measure_current_flag)
+    {
+        AFC_raw_data_i[AFC_sample_count_i] = _sdata;
+        if (AFC_sample_count_i < _sample_size)
+            AFC_sample_count_i++;
+        if (AFC_sample_count_i >= _sample_size)
+            AFC_sample_count_i = 0;
+    }
 }
 
 void timer2_setup_VI()
@@ -418,14 +434,14 @@ void OnTimer2Interrupt()
     set_measure_mode(_VI_measure_mode);
 }
 
-bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a, uint8_t _max_data_size)
+bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a_v, int16_t *_AFC_a_i, uint8_t _max_data_size)
 {
-    uint8_t error_voltage_adc_data = 0, error_current_adc_data = 0, error_AFC_adc_data = 0;
+    uint8_t error_voltage_adc_data = 0, error_current_adc_data = 0, error_AFC_adc_data_i = 0;
     int8_t _size_of_array = _max_data_size;
 
     error_voltage_adc_data = copy_raw_data_input(_volt_a, volt_adc_data, _size_of_array);
     error_current_adc_data = copy_raw_data_input(_current_a, current_adc_data, _size_of_array);
-    error_AFC_adc_data = copy_raw_data_input(_AFC_a, AFC_adc_data, _size_of_array);
+    error_AFC_adc_data_i = copy_raw_data_input(_AFC_a_v, AFC_adc_data_v, _size_of_array) || copy_raw_data_input(_AFC_a_i, AFC_adc_data_i, _size_of_array);
     // if (!error_voltage_adc_data && !error_current_adc_data)
     //     _data_copy_check = 1;
     // else
@@ -453,15 +469,18 @@ bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a, ui
         // AFC Data
         Serial_debug.println("---*");
         for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(AFC_adc_data[_c1]);
-        Serial_debug.println("AFC DATA");
+            Serial_debug.println(AFC_adc_data_v[_c1]);
+        Serial_debug.println("AFC DATA Volt");
+        for (int _c1 = 0; _c1 < _sample_size; _c1++)
+            Serial_debug.println(AFC_adc_data_i[_c1]);
+        Serial_debug.println("AFC DATA Current");
     }
 
     if (_data_copy_check)
     {
         back_end_data.pk_pk_voltage = calculate_voltage(volt_adc_data, _adc_sample_time_gap, _size_of_array);
         back_end_data.pk_pk_current = calculate_voltage(current_adc_data, _adc_sample_time_gap, _size_of_array);
-        back_end_data.pk_pk_AFC = calculate_voltage(AFC_adc_data, _adc_sample_time_gap, _size_of_array);
+        back_end_data.pk_pk_AFC = calculate_voltage(AFC_adc_data_i, _adc_sample_time_gap, _size_of_array);
 
         if (_dsp_serial_print0)
         {
@@ -475,6 +494,10 @@ bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a, ui
             Serial_debug.print("2.3 AFC=");
             Serial_debug.print(back_end_data.pk_pk_AFC);
             Serial_debug.println(" V");
+            Serial_debug.println("2.4 Frequency(Hz)");
+            Serial_debug.println(back_end_data.set_freq);
+            Serial_debug.println("--");
+            Serial_debug.println("--");
         }
     }
     else if (_dsp_serial_print0)

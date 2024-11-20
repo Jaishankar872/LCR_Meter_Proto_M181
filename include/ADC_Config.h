@@ -18,7 +18,7 @@ bool ADC_interrupt_one_time_config = 1;
 bool timer3_one_time_config = 1;
 
 // Function Declaration
-int timer3_set_interval(int16_t _measure_freq, int _n_samples);
+int timer3_set_interval(int16_t _measure_freq);
 void setup_ADC1_PA1();
 void setup_ADC2_PA0();
 
@@ -27,12 +27,12 @@ void setup_ADC2_PA0();
 // Function Definition
 
 // Setup Timer3 ---> ADC2
-int timer3_set_interval(int16_t _measure_freq, int _n_samples)
+int timer3_set_interval(int16_t _measure_freq)
 {
     int _time_us = 0;
     if (_measure_freq > 0)
     {
-        _time_us = 1000000 / (_measure_freq * _n_samples); // Microseconds
+        _time_us = 1000000 / (_measure_freq * adc_sample_rate); // Microseconds
         uint32_t _temp2_ovf = CPU_FREQ / timer3_prescaler; // Timer frequency
         _temp2_ovf *= _time_us;
 
