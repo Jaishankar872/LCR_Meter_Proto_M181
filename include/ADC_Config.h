@@ -19,8 +19,8 @@ bool timer3_one_time_config = 1;
 
 // Function Declaration
 int timer3_set_interval(int16_t _measure_freq);
-void setup_ADC1_PA1();
-void setup_ADC2_PA0();
+void setup_ADC1_PA0();
+void setup_ADC2_PA1();
 
 /*----------------------------------------------------------------------*/
 
@@ -71,8 +71,8 @@ int timer3_set_interval(int16_t _measure_freq)
     return _time_us;
 }
 
-// Setup ADC1 -> PA1 pin
-void setup_ADC1_PA1()
+// Setup ADC1 -> PA0 pin
+void setup_ADC1_PA0()
 {
     // ADC1 used to meaursing the GA pin (Voltage/Current).
     /*
@@ -93,7 +93,7 @@ void setup_ADC1_PA1()
     HAL_ADC_Init(&hadc1_PA1);
 
     ADC_ChannelConfTypeDef adcChannelConfig = {0};
-    adcChannelConfig.Channel = ADC_CHANNEL_1; // Selected pin PA1
+    adcChannelConfig.Channel = ADC_CHANNEL_0; // Selected pin PA0
     adcChannelConfig.Rank = ADC_REGULAR_RANK_1;
     adcChannelConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
     HAL_ADC_ConfigChannel(&hadc1_PA1, &adcChannelConfig);
@@ -111,10 +111,10 @@ void setup_ADC1_PA1()
     HAL_ADC_Start_IT(&hadc1_PA1); // Start the ADC conversion
 }
 
-// Setup ADC2 -> PA0 pin
-void setup_ADC2_PA0()
+// Setup ADC2 -> PA1 pin -> AFC pin
+void setup_ADC2_PA1()
 {
-    // ADC2 used to meaursing the GA pin (Voltage/Current).
+    // ADC2 used to meaursing the AFC pin.
     /*
       1. Setting up Timer 3 to Output TRGO
       2. Setting up ADC2 to Trigger on Timer 3 TRGO
@@ -133,7 +133,7 @@ void setup_ADC2_PA0()
     HAL_ADC_Init(&hadc2_PA0);
 
     ADC_ChannelConfTypeDef adcChannelConfig = {0};
-    adcChannelConfig.Channel = ADC_CHANNEL_0; // Selected pin PA0
+    adcChannelConfig.Channel = ADC_CHANNEL_1; // Selected pin PA1
     adcChannelConfig.Rank = ADC_REGULAR_RANK_1;
     adcChannelConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
     HAL_ADC_ConfigChannel(&hadc2_PA0, &adcChannelConfig);

@@ -122,8 +122,8 @@ void int_system_setup(float _fw_ver)
     back_end_data.set_freq = test_frequency;
 
     // (void)analogRead(ADC_pin);     // use one analogRead to setup pin correctly in analog mode
-    setup_ADC1_PA1();
-    setup_ADC2_PA0(); // kick off timer to generate TRGO events and setup ADC
+    setup_ADC1_PA0();
+    setup_ADC2_PA1(); // kick off timer to generate TRGO events and setup ADC
     int _time_us1 = timer3_set_interval(test_frequency);
 
     timer2_setup_VI();
@@ -137,6 +137,10 @@ void int_system_setup(float _fw_ver)
     }
     else
         Serial_debug.println("Wrong Timer3 Value, pass correct value");
+
+    // Setup the FFT
+    setup_fft_function(); 
+    // Commented due to Overflow in Memory
 }
 
 void regular_task_loop()
@@ -343,13 +347,13 @@ void set_measure_mode(int8_t _mode1)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-    if (hadc->Instance == ADC1)
+    if (hadc->Instance == ADC2) // Planned only AFC pin but DMA for ADC2 Let see!!!
     {
         int16_t adc_pa1 = HAL_ADC_GetValue(hadc);
         if (AFC_adc_capture_data_enable)
             store_AFC_data(adc_pa1); // Store Voltage data
     }
-    if (hadc->Instance == ADC2)
+    if (hadc->Instance == ADC1)
     {
         int16_t adc_pa0 = HAL_ADC_GetValue(hadc);
         if (adc_capture_data_enable)
@@ -459,21 +463,31 @@ bool process_adc_data(int16_t *_volt_a, int16_t *_current_a, int16_t *_AFC_a_v, 
 
     if (_dsp_serial_print0 && 1)
     {
+        const int _print_delay = 3; // Milli Seconds
+
+        // float _out_fft_data[_max_data_size];
+        //process_fft_data_manually(volt_adc_data,_out_fft_data,_max_data_size);
+
         Serial_debug.println("---*");
+        Serial_debug.println("Voltage DATA,AFC DATA Volt,Current DATA,AFC DATA Current,FFT_Voltage");
         for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(volt_adc_data[_c1]);
-        Serial_debug.println("Voltage DATA");
-        for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(current_adc_data[_c1]);
-        Serial_debug.println("Current DATA");
-        // AFC Data
-        Serial_debug.println("---*");
-        for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(AFC_adc_data_v[_c1]);
-        Serial_debug.println("AFC DATA Volt");
-        for (int _c1 = 0; _c1 < _sample_size; _c1++)
-            Serial_debug.println(AFC_adc_data_i[_c1]);
-        Serial_debug.println("AFC DATA Current");
+        {
+            delay(_print_delay);
+
+            Serial_debug.print(volt_adc_data[_c1]);
+            Serial_debug.print(",");
+            Serial_debug.print(AFC_adc_data_v[_c1]);
+            Serial_debug.print(",");
+            Serial_debug.print(current_adc_data[_c1]);
+            Serial_debug.print(",");
+            Serial_debug.print(AFC_adc_data_i[_c1]);            
+            // Serial_debug.print(",");
+            // Serial_debug.println(_out_fft_data[_c1]);
+
+            Serial_debug.println(""); //New line
+        }
+
+        Serial_debug.println("");
     }
 
     if (_data_copy_check)

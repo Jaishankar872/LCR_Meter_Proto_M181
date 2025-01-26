@@ -5,6 +5,22 @@ To Process the captured ADC Raw Data
 #define DSP_ADC_DATA_H
 
 #include "Arduino.h"
+#include <CMSIS_DSP.h>
+/*
+Reference for FFT
+1. CMSIS DSP - https://github.com/stm32duino/Arduino_Core_STM32/wiki/API#cmsis-dsp
+2. Phil's Lab - https://www.youtube.com/watch?v=d1KvgOwWvkM
+*/
+
+/*----------------------------------------------------------------------*/
+
+// Variable Delcaration
+
+arm_rfft_fast_instance_f32 fft_handler;
+
+#define FFT_BUFFER_SIZE 128 // Size should power of 2 like 2,4,8,16,32,64,
+float fft_in_buffer[FFT_BUFFER_SIZE], fft_out_buffer[FFT_BUFFER_SIZE];
+u_int8_t fft_flag_complete = 0;
 
 /*----------------------------------------------------------------------*/
 
@@ -12,6 +28,8 @@ To Process the captured ADC Raw Data
 float adc_volt_convert(int raw_adc);
 uint16_t copy_raw_data_input(int16_t _source_data[], int16_t *_target_data, uint8_t _max_data_size);
 float calculate_voltage(int16_t *_data_in, int16_t _time_gap, uint8_t _max_data_size);
+void setup_fft_function();
+void process_fft_data_manually(int16_t *_input_data, float *_output_data, u_int16_t _buffer_size);
 
 /*----------------------------------------------------------------------*/
 
@@ -75,4 +93,42 @@ uint16_t copy_raw_data_input(int16_t _source_data[], int16_t *_target_data, uint
     return _error_code;
 }
 
+void setup_fft_function()
+{
+    arm_rfft_fast_init_f32(&fft_handler, FFT_BUFFER_SIZE);
+}
+
+void process_fft_data_manually(int16_t *_input_data, float *_output_data, u_int16_t _buffer_size)
+{
+    // Pre Process the data
+    static int16_t fftIndex = 0;
+    for (int n = 0; n < _buffer_size; n++)
+    {
+        // Convert into float value
+        float _input_float_data = (float)_input_data[n];
+
+        // Fill FFT buffer with data
+        fft_in_buffer[fftIndex] = _input_float_data;
+        fftIndex++;
+        // Note: Buffer size of FFT value and Input value not required to be same.
+    }
+    if (1) // if (fftIndex >= _buffer_size)
+    {
+        // Perform FFT
+        arm_rfft_fast_f32(&fft_handler, fft_in_buffer, fft_out_buffer, 0);
+
+        // Set the FFT Complete flag variable
+        fft_flag_complete = 1;
+
+        // Reset the FFT Buffer Index
+        fftIndex = 0;
+    }
+
+    // Post-process the FFT output data
+    for (int n = 0; n < _buffer_size; n++) {
+        // Convert FFT output to int16_t
+        _output_data[n] = fft_out_buffer[n];
+    }
+    fftIndex = 0;
+}
 #endif
