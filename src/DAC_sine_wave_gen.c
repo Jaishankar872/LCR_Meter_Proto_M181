@@ -113,7 +113,7 @@ void DAC_pinMode_B0_B7(uint8_t _pinmode0)
 void set_sine_wave_frequency(uint16_t _set_frequency)
 {
 
-    uint32_t window_time_us = 0;
+    float window_time_us = 0;
     uint32_t timer1_period = 0;
 
     float APB1_Timer_clock_set_Time_nS = 20.9;//48MHz = 20.9nS; //[Not Working] 72MHz = 13.889nS;
