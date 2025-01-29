@@ -5,23 +5,19 @@
  * @brief          : Main program body
  ******************************************************************************
  * @attention
- *
+ * Developed by: Jaishankar M
  ******************************************************************************
  */
 
 #include "main.h"
 #include "string.h"
 #include "stdio.h"
+#include "m181_display_softwire.h"
 
-/**
- * Note: All the header files in folder "include"
- *      are automatically added into compilation
- */
 
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
-TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -55,14 +51,17 @@ int main(void)
 
     printf("Get_APB2_Clock: %ld\n", HAL_RCC_GetPCLK2Freq());
     printf("Current Frequency: 1000 \n");
+    print_home_screen(1000);
     HAL_Delay(8000);
 
     set_sine_wave_frequency(500);
     printf("Current Frequency: 500 \n");
+    print_home_screen(500);
     HAL_Delay(8000);
 
     set_sine_wave_frequency(100);
     printf("Current Frequency: 100 \n");
+    print_home_screen(100);
     HAL_Delay(8000);
 
     printf("---\n");
@@ -91,6 +90,9 @@ void setup()
 
   // Timer Initialization
   MX_TIM2_Init();
+
+  //Display Initialization
+  ssd1306_display_sofwire_Init();
 }
 
 /**
