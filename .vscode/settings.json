@@ -5,6 +5,9 @@
         "compare": "cpp",
         "main.h": "c",
         "stm32f1xx_hal.h": "c",
-        "dac_sine_wave_gen.h": "c"
+        "dac_sine_wave_gen.h": "c",
+        "stm32f1xx_hal_tim.h": "c",
+        "m181_display_softwire.h": "c",
+        "ssd1306.h": "c"
     }
 }
