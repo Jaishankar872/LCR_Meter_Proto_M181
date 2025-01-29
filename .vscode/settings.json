@@ -8,6 +8,8 @@
         "dac_sine_wave_gen.h": "c",
         "stm32f1xx_hal_tim.h": "c",
         "m181_display_softwire.h": "c",
-        "ssd1306.h": "c"
+        "ssd1306.h": "c",
+        "adc_config_dma.h": "c",
+        "stm32f1xx_hal_dma.h": "c"
     }
 }

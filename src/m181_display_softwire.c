@@ -5,13 +5,22 @@
 #include "ssd1306.h"
 
 // Private Variable Declaration
+#define I2C_SDA_Pin GPIO_PIN_3
+#define I2C_SDA_GPIO_Port GPIOA
+#define I2C_SCL_Pin GPIO_PIN_4
+#define I2C_SCL_GPIO_Port GPIOA
+
 uint16_t counter_display = 0;
 char buffer_display[20];
+
+// Private Function Declaration
+void software_I2C_GPIO_init();
 
 // Function Definition
 void ssd1306_display_sofwire_Init(void)
 {
-    // Initialize I2C
+    // Initialize Software I2C
+    software_I2C_GPIO_init();
     DWT_Delay_Init();
     I2C_init();
 
@@ -54,6 +63,21 @@ void print_home_screen(int _frequency)
     ssd1306_WriteString(buffer_display, Font_7x10, White);
     // Update the display
     ssd1306_UpdateScreen();
+}
+
+void software_I2C_GPIO_init()
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    /*Configure Software I2C pins : I2C_SDA_Pin I2C_SCL_Pin */
+    GPIO_InitStruct.Pin = I2C_SDA_Pin | I2C_SCL_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    /*Configure GPIO pin Output Level */
+    HAL_GPIO_WritePin(GPIOA, I2C_SDA_Pin | I2C_SCL_Pin, GPIO_PIN_RESET);
 }
 
 // End of File

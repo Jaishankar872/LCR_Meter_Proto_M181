@@ -26,18 +26,11 @@ void Error_Handler(void);
 
 // Function Declaration for
 // DAC Sine Wave Generator "DAC_sine_wave_gen.h"
-extern void sine_wave_setup();
-extern void set_sine_wave_frequency(uint16_t _set_frequency);
 
 #define ADC_pin_Pin GPIO_PIN_0
 #define ADC_pin_GPIO_Port GPIOA
 #define AFC_pin_Pin GPIO_PIN_1
 #define AFC_pin_GPIO_Port GPIOA
-
-#define I2C_SDA_Pin GPIO_PIN_3
-#define I2C_SDA_GPIO_Port GPIOA
-#define I2C_SCL_Pin GPIO_PIN_4
-#define I2C_SCL_GPIO_Port GPIOA
 
 #define LED_pin_Pin GPIO_PIN_5
 #define LED_pin_GPIO_Port GPIOA

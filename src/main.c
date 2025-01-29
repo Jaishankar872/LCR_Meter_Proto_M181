@@ -13,10 +13,8 @@
 #include "string.h"
 #include "stdio.h"
 #include "m181_display_softwire.h"
-
-
-ADC_HandleTypeDef hadc1;
-DMA_HandleTypeDef hdma_adc1;
+#include "DAC_sine_wave_gen.h"
+#include "ADC_Config_DMA.h"
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -27,12 +25,15 @@ DMA_HandleTypeDef hdma_usart1_tx;
 void setup();
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_ADC1_Init(void);
 
 static void MX_TIM2_Init(void);
-static void MX_TIM3_Init(void);
+// static void MX_TIM3_Init(void);
+
+// Private Variable Declaration
+#define DMA_ADC_data_length 50
+uint8_t adc_PA0_data_ready_flag = 0;
+int16_t adc_pa0_DMA_data[DMA_ADC_data_length];
 
 // [Temp]Redirect printf to UART
 int _write(int file, char *ptr, int len)
@@ -47,24 +48,26 @@ int main(void)
   setup();
   while (1)
   {
-    set_sine_wave_frequency(1000);
+    if (!adc_PA0_data_ready_flag)
+      printf("Waiting..\n");
 
-    printf("Get_APB2_Clock: %ld\n", HAL_RCC_GetPCLK2Freq());
-    printf("Current Frequency: 1000 \n");
-    print_home_screen(1000);
-    HAL_Delay(8000);
+    if (adc_PA0_data_ready_flag == 1)
+    {
 
-    set_sine_wave_frequency(500);
-    printf("Current Frequency: 500 \n");
-    print_home_screen(500);
-    HAL_Delay(8000);
+      const int _print_delay = 20; // Milli Seconds
+      adc_PA0_data_ready_flag = 0;
+      // printf("Via DMA interrupt Callback function\n");
+      for (int i = 0; i < DMA_ADC_data_length; i++)
+      {
+        printf("%d,%d\n", i + 1, adc_pa0_DMA_data[i]);
+        HAL_Delay(_print_delay);
+      }
+    }
 
-    set_sine_wave_frequency(100);
-    printf("Current Frequency: 100 \n");
-    print_home_screen(100);
-    HAL_Delay(8000);
-
-    printf("---\n");
+    // HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    // GPIOC->ODR ^= GPIO_PIN_13; // Toggle LED
+    Start_ADC_Conversion();
+    HAL_Delay(3000);
   }
 }
 
@@ -78,9 +81,7 @@ void setup()
   sine_wave_setup();
 
   // ADC Initialization
-  MX_DMA_Init();
-  MX_ADC1_Init();
-  MX_TIM3_Init();
+  setup_ADC_with_DMA();
 
   // GPIO Initialization
   MX_GPIO_Init();
@@ -91,8 +92,14 @@ void setup()
   // Timer Initialization
   MX_TIM2_Init();
 
-  //Display Initialization
+  // Display Initialization
   ssd1306_display_sofwire_Init();
+
+  // Set DAC Frequency
+  u_int16_t _freq = 800;
+  set_sine_wave_frequency(_freq);
+  print_home_screen(_freq);
+  set_ADC_Measure_window(_freq);
 }
 
 /**
@@ -141,41 +148,6 @@ void SystemClock_Config(void)
 }
 
 /**
- * @brief ADC1 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_ADC1_Init(void)
-{
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /** Common config
-   */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-   */
-  sConfig.Channel = ADC_CHANNEL_0;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
  * @brief TIM2 Initialization Function
  * @param None
  * @retval None
@@ -214,34 +186,34 @@ static void MX_TIM2_Init(void)
  * @param None
  * @retval None
  */
-static void MX_TIM3_Init(void)
-{
+// static void MX_TIM3_Init(void)
+// {
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
+//   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+//   TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 65535;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
+//   htim3.Instance = TIM3;
+//   htim3.Init.Prescaler = 0;
+//   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+//   htim3.Init.Period = 65535;
+//   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+//   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+//   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+//   {
+//     Error_Handler();
+//   }
+//   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+//   if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+//   {
+//     Error_Handler();
+//   }
+//   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+//   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+//   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+//   {
+//     Error_Handler();
+//   }
+// }
 
 /**
  * @brief USART1 Initialization Function
@@ -267,20 +239,20 @@ static void MX_USART1_UART_Init(void)
 /**
  * Enable DMA controller clock
  */
-static void MX_DMA_Init(void)
-{
+// static void MX_DMA_Init(void)
+// {
 
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
+//   /* DMA controller clock enable */
+//   __HAL_RCC_DMA1_CLK_ENABLE();
 
-  /* DMA interrupt init */
-  /* DMA1_Channel1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-  /* DMA1_Channel4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-}
+//   /* DMA interrupt init */
+//   /* DMA1_Channel1_IRQn interrupt configuration */
+//   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
+//   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+//   /* DMA1_Channel4_IRQn interrupt configuration */
+//   HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+//   HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+// }
 
 /**
  * @brief GPIO Initialization Function
@@ -297,16 +269,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, I2C_SDA_Pin | I2C_SCL_Pin | LED_pin_Pin | GS_pin_Pin | VI_pin_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-
-  /*Configure GPIO pins : I2C_SDA_Pin I2C_SCL_Pin */
-  GPIO_InitStruct.Pin = I2C_SDA_Pin | I2C_SCL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED_pin_Pin GS_pin_Pin VI_pin_Pin */
   GPIO_InitStruct.Pin = LED_pin_Pin | GS_pin_Pin | VI_pin_Pin;
@@ -320,6 +282,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  // Set to Voltage Measurement Mode
+  HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_pin_Pin, 0);
+  HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_pin_Pin, 1);
 }
 
 /**
