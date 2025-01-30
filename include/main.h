@@ -32,20 +32,10 @@ void Error_Handler(void);
 #define AFC_pin_Pin GPIO_PIN_1
 #define AFC_pin_GPIO_Port GPIOA
 
-#define LED_pin_Pin GPIO_PIN_5
-#define LED_pin_GPIO_Port GPIOA
-
 #define GS_pin_Pin GPIO_PIN_6
 #define GS_pin_GPIO_Port GPIOA
 #define VI_pin_Pin GPIO_PIN_7
 #define VI_pin_GPIO_Port GPIOA
-
-#define BTN1_HOLD_Pin GPIO_PIN_13
-#define BTN1_HOLD_GPIO_Port GPIOB
-#define BTN2_SP_Pin GPIO_PIN_14
-#define BTN2_SP_GPIO_Port GPIOB
-#define BTN3_RCL_Pin GPIO_PIN_15
-#define BTN3_RCL_GPIO_Port GPIOB
 
 #define SWDIO_Pin GPIO_PIN_13
 #define SWDIO_GPIO_Port GPIOA

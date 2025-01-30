@@ -185,7 +185,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     if (hadc->Instance == ADC1)
     {
         HAL_ADC_Stop_DMA(&hadc1);
-        GPIOA->BRR = GPIO_PIN_5; // Set PA5 Low
         separate_ADC_CH_from_DMA();
         adc_read_complete_flag_DMA = 1;
     }
@@ -203,5 +202,4 @@ void separate_ADC_CH_from_DMA()
 void Start_ADC_Conversion(){
     // Restart the ADC
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
-    GPIOA->BSRR = GPIO_PIN_5; // Set PA5 High
 }

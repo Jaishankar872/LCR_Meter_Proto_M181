@@ -15,6 +15,7 @@
 #include "m181_display_softwire.h"
 #include "DAC_sine_wave_gen.h"
 #include "ADC_Config_DMA.h"
+#include "Buttons_and_LED.h"
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -66,6 +67,10 @@ int main(void)
 
     // HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
     // GPIOC->ODR ^= GPIO_PIN_13; // Toggle LED
+    if (get_buttons_status(1))
+      LED_control(1);
+    else if (get_buttons_status(2))
+      LED_control(0);
     Start_ADC_Conversion();
     HAL_Delay(3000);
   }
@@ -84,6 +89,7 @@ void setup()
   setup_ADC_with_DMA();
 
   // GPIO Initialization
+  setup_buttons_and_LED();
   MX_GPIO_Init();
 
   // UART Initialization
@@ -271,17 +277,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
 
   /*Configure GPIO pins : LED_pin_Pin GS_pin_Pin VI_pin_Pin */
-  GPIO_InitStruct.Pin = LED_pin_Pin | GS_pin_Pin | VI_pin_Pin;
+  GPIO_InitStruct.Pin = GS_pin_Pin | VI_pin_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : BTN1_HOLD_Pin BTN2_SP_Pin BTN3_RCL_Pin */
-  GPIO_InitStruct.Pin = BTN1_HOLD_Pin | BTN2_SP_Pin | BTN3_RCL_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   // Set to Voltage Measurement Mode
   HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_pin_Pin, 0);
