@@ -3,7 +3,7 @@
  * @brief DAC Sine Wave Generator
  * This file contains the function definition for DAC Sine Wave Generator
  * Via Timer 1 Interrupt
- * 
+ *
  * @author Jaishankar M
  */
 
@@ -118,7 +118,7 @@ void set_sine_wave_frequency(uint16_t _set_frequency)
     float window_time_us = 0;
     uint32_t timer1_period = 0;
 
-    float APB1_Timer_clock_set_Time_nS = 20.9;//48MHz = 20.9nS; //[Not Working] 72MHz = 13.889nS;
+    float APB1_Timer_clock_set_Time_nS = 20.9; // 48MHz = 20.9nS; //[Not Working] 72MHz = 13.889nS;
     float After_timer1_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * _timer1_prescaler;
 
     if (_set_frequency > 0)
@@ -144,16 +144,13 @@ void set_sine_wave_frequency(uint16_t _set_frequency)
     }
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void On_Timer1_Interrupt()
 {
-    if (htim->Instance == TIM1)
-    {
-        DAC_analogWrite_B0_B7(sine_data[_pos_sine_data]);
-        if (_pos_sine_data >= (_no_of_sample_per_sine - 1))
-            _pos_sine_data = 0;
-        else
-            _pos_sine_data++;
-    }
+    DAC_analogWrite_B0_B7(sine_data[_pos_sine_data]);
+    if (_pos_sine_data >= (_no_of_sample_per_sine - 1))
+        _pos_sine_data = 0;
+    else
+        _pos_sine_data++;
 }
 
 void DAC_analogWrite_B0_B7(uint8_t _dat1)

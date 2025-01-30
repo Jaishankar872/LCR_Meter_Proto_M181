@@ -19,30 +19,49 @@
 // Private Variable Declaration
 ADC_HandleTypeDef hadc1, hadc2;
 DMA_HandleTypeDef hdma_adc1;
-TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim2, htim3;
+
+#define GS_Pin GPIO_PIN_6
+#define GS_pin_GPIO_Port GPIOA
+#define VI_Pin GPIO_PIN_7
+#define VI_pin_GPIO_Port GPIOA
+#define HIGH 1
+#define LOW 0
 
 // Private Variable Declaration
 uint16_t raw_adc_DMA_data[DMA_ADC_data_length * 2];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
+uint8_t measure_volt_flag = 0, measure_current_flag = 0;
+uint8_t GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
+volatile uint8_t _VI_measure_mode = 1, auto_switch_VI_measure_mode = 1;
+
 // Private Function Declaration
 void Timer3_Init_ADC();
 void DMA_Init_ADC();
 void separate_ADC_CH_from_DMA();
+void Start_ADC_Conversion();
 
-void ADC_Init_PA0();
-void ADC_Init_PA1();
+void GPIO_Init_VI_GS_Pin();
+void Timer2_Init_VI_switch(void);
+void Start_Timer_VI_switch();
+void set_measure_mode(int8_t _mode1);
+
+void ADC_Init_PA0_PA1();
 extern void Error_Handler(void);
 
 // Function Definition
 void setup_ADC_with_DMA()
 {
+    // Initiate ADC with Timer 3
     DMA_Init_ADC();
-    ADC_Init_PA0();
+    ADC_Init_PA0_PA1();
     Timer3_Init_ADC();
 
-    // ADC_Init_PA1(); // To be implemented
-    HAL_TIM_Base_Start(&htim3);
+    // Initiate VI Pin with Timer 2
+    GPIO_Init_VI_GS_Pin();
+    Timer2_Init_VI_switch();
+    Start_Timer_VI_switch();
 
     set_ADC_Measure_window(1000); // 1 KHz
 }
@@ -77,9 +96,12 @@ void Timer3_Init_ADC()
 
     // Rest of the Config remains mentioned as
     // void void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim_base)
+
+    // Start the Timer3
+    HAL_TIM_Base_Start(&htim3);
 }
 
-void ADC_Init_PA0()
+void ADC_Init_PA0_PA1()
 {
     /**
      * 1. Setting up Timer 3 to Output TRGO
@@ -95,18 +117,26 @@ void ADC_Init_PA0()
     hadc1.Init.DiscontinuousConvMode = DISABLE;
     hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
     hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-    hadc1.Init.NbrOfConversion = 1;
+    hadc1.Init.NbrOfConversion = 2; // For Two Channel
     if (HAL_ADC_Init(&hadc1) != HAL_OK)
     {
         Error_Handler();
     }
 
-    // Call the HAL_ADC_MspInit() function in the HAL_ADC_Init() function
+    /** Configure Regular Channel
+     */
+    sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
+    sConfig.Rank = ADC_REGULAR_RANK_1;
+    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
+    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
 
     /** Configure Regular Channel
      */
-    sConfig.Channel = ADC_CHANNEL_0;
-    sConfig.Rank = ADC_REGULAR_RANK_1;
+    sConfig.Channel = ADC_CHANNEL_1; // PA1 Pin
+    sConfig.Rank = ADC_REGULAR_RANK_2;
     sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
     if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
     {
@@ -120,14 +150,10 @@ void ADC_Init_PA0()
     // Disable the ADC Interrupt at stm32f1xx_hal_msp.c file
 
     // Start the ADC with DMA
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+    // HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
 
     // Rest of the Config remains mentioned as
     // void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc) placed at stm32f1xx_hal_msp.c file
-
-}
-void ADC_Init_PA1()
-{
 }
 
 void DMA_Init_ADC()
@@ -140,8 +166,6 @@ void DMA_Init_ADC()
     /* DMA1_Channel1_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0); // ADC Data
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-
-
 }
 
 void set_ADC_Measure_window(uint16_t _measure_frequency)
@@ -186,7 +210,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     {
         HAL_ADC_Stop_DMA(&hadc1);
         separate_ADC_CH_from_DMA();
-        adc_read_complete_flag_DMA = 1;
     }
 
     // Now will take over by DMA
@@ -194,12 +217,214 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 void separate_ADC_CH_from_DMA()
 {
-    for (int i = 0; i < DMA_ADC_data_length; i++)
-        adc_pa0_DMA_data[i] = raw_adc_DMA_data[i];
-    adc_PA0_data_ready_flag = 1;
+    if (measure_volt_flag && !measure_current_flag)
+    {
+        for (int i = 0; i < DMA_ADC_data_length * 2; i++)
+        {
+            if (i % 2 == 0)
+                adc_Volt_data[i / 2] = raw_adc_DMA_data[i];
+            else if (i % 2 == 1)
+                AFC_adc_Volt_data[i / 2] = raw_adc_DMA_data[i];
+        }
+    }
+    else if (!measure_volt_flag && measure_current_flag)
+    {
+        for (int i = 0; i < DMA_ADC_data_length * 2; i++)
+        {
+            if (i % 2 == 0)
+                adc_Current_data[i / 2] = raw_adc_DMA_data[i];
+            else if (i % 2 == 1)
+                AFC_adc_Current_data[i / 2] = raw_adc_DMA_data[i];
+        }
+        adc_read_complete_flag_DMA = 1; // Only after the Current Completion
+    }
+    // adc_read_complete_flag_DMA = 1;
 }
 
-void Start_ADC_Conversion(){
+uint8_t ADC_Data_Ready()
+{
+    if (adc_read_complete_flag_DMA)
+    {
+        adc_read_complete_flag_DMA = 0;
+        return 1;
+    }
+    else
+        return 0;
+}
+
+void Start_ADC_Conversion()
+{
     // Restart the ADC
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length * 2);
+}
+
+void GPIO_Init_VI_GS_Pin()
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    /* GPIO Ports Clock Enable */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    /*Configure GPIO pin Output Level */
+
+    /*Configure GPIO pins : LED_pin_Pin GS_Pin VI_Pin */
+    GPIO_InitStruct.Pin = GS_Pin | VI_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    // Set to Voltage Measurement Mode
+    // HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, 0);
+    // HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, 1);
+}
+
+/**
+ * @brief TIM2 Initialization Function
+ * @param None
+ * @retval None
+ */
+void Timer2_Init_VI_switch(void)
+{
+
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+    htim2.Instance = TIM2;
+    htim2.Init.Prescaler = 7200;
+    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim2.Init.Period = 15000; // 25000;
+    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+}
+
+void Start_Timer_VI_switch()
+{
+    // Start the Timer 2 with Interrupt
+    HAL_TIM_Base_Start_IT(&htim2);
+}
+
+// VI Measure mode controlled by Timer 2 Interrupt
+void set_measure_mode(int8_t _mode1)
+{
+    /*
+    +----------------------+
+    <1> - Discharge for Voltage Measure
+    <2> - Set Voltage Mode
+    <3> - Measure Voltage ****
+    <4> - Discharge for Current Measure
+    <5> - Set Current Mode
+    <6> - Measure Current ****
+    |---------------------------|
+    | Discharge | Set | Measure |
+    |---------------------------|
+    */
+    if (!auto_switch_VI_measure_mode)
+        _mode1 -= 1; // To set control pins
+
+    switch (_mode1)
+    {
+    case 1:
+        // 1. Discharge for Voltage Measure
+        VI_pin_state = LOW;
+        GS_pin_state = LOW;
+        break;
+    case 2:
+        // 2. Set Voltage Mode
+        VI_pin_state = LOW;
+        GS_pin_state = HIGH;
+        break;
+    case 3:
+        // 3. Measure Voltage
+        measure_volt_flag = 1; // Start Measurement
+        measure_current_flag = 0;
+        break;
+    case 4:
+        // 4. Discharge for Current Measure
+        VI_pin_state = HIGH;
+        GS_pin_state = LOW;
+        break;
+    case 5:
+        // 5.Set Current Mode
+        VI_pin_state = HIGH;
+        GS_pin_state = HIGH;
+        break;
+    case 6:
+        // 6. Measure Current
+        measure_volt_flag = 0;
+        measure_current_flag = 1; // Start Measurement
+        break;
+    default:
+        // Add Fail safe step
+        // Do Nothing -> Stop the ADC data capturing volt/current data
+        measure_volt_flag = 0;
+        measure_current_flag = 0;
+        break;
+    }
+
+    if (_mode1 % 3 != 0)
+    {
+        // Stop Measurement
+        measure_volt_flag = 0;
+        measure_current_flag = 0;
+        // Set the Mode
+        HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, VI_pin_state);
+        HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, GS_pin_state);
+    }
+    if (!auto_switch_VI_measure_mode)
+    {
+        if (_mode1 == 2)
+        {
+            // 3. Measure Voltage
+            measure_volt_flag = 1; // Start Measurement
+            measure_current_flag = 0;
+            Start_ADC_Conversion();
+        }
+        else if (_mode1 == 5)
+        {
+            // 6. Measure Current
+            measure_volt_flag = 0;
+            measure_current_flag = 1; // Start Measurement
+            // Start_ADC_Conversion();
+        }
+    }
+    else if (auto_switch_VI_measure_mode)
+    {
+        if (measure_volt_flag && !measure_current_flag)
+        {
+            GPIOA->BSRR = GPIO_PIN_5; // Set PA5 High
+            Start_ADC_Conversion();   // Measure Voltage
+        }
+        if (!measure_volt_flag && measure_current_flag)
+        {
+            GPIOA->BRR = GPIO_PIN_5; // Set PA5 LOW
+            Start_ADC_Conversion();  // Measure Current
+        }
+    }
+}
+
+void On_Timer2_Interrupt()
+{
+    if (auto_switch_VI_measure_mode)
+    {
+        _VI_measure_mode++;
+        if (_VI_measure_mode == 7)
+            _VI_measure_mode = 1;
+    }
+    set_measure_mode(_VI_measure_mode);
 }

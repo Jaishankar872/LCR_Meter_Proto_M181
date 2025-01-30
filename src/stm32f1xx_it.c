@@ -54,6 +54,8 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
+extern void On_Timer1_Interrupt();
+extern void On_Timer2_Interrupt();
 
 /* USER CODE END PFP */
 
@@ -311,5 +313,11 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE END EXTI15_10_IRQn 1 */
 }
 /* USER CODE BEGIN 1 */
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM1)
+    On_Timer1_Interrupt();
+  if (htim->Instance == TIM2)
+    On_Timer2_Interrupt();
+}
 /* USER CODE END 1 */

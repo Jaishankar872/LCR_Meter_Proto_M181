@@ -25,16 +25,18 @@ DMA_HandleTypeDef hdma_usart1_tx;
 
 void setup();
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
+// static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 
-static void MX_TIM2_Init(void);
+// static void MX_TIM2_Init(void);
 // static void MX_TIM3_Init(void);
 
 // Private Variable Declaration
 #define DMA_ADC_data_length 50
-uint8_t adc_PA0_data_ready_flag = 0;
-int16_t adc_pa0_DMA_data[DMA_ADC_data_length];
+int16_t adc_Current_data[DMA_ADC_data_length];
+int16_t adc_Volt_data[DMA_ADC_data_length];
+int16_t AFC_adc_Current_data[DMA_ADC_data_length];
+int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
 
 // [Temp]Redirect printf to UART
 int _write(int file, char *ptr, int len)
@@ -49,30 +51,18 @@ int main(void)
   setup();
   while (1)
   {
-    if (!adc_PA0_data_ready_flag)
-      printf("Waiting..\n");
-
-    if (adc_PA0_data_ready_flag == 1)
+    if (ADC_Data_Ready() == 1)
     {
 
       const int _print_delay = 20; // Milli Seconds
-      adc_PA0_data_ready_flag = 0;
       // printf("Via DMA interrupt Callback function\n");
       for (int i = 0; i < DMA_ADC_data_length; i++)
       {
-        printf("%d,%d\n", i + 1, adc_pa0_DMA_data[i]);
+        printf("%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i]);
         HAL_Delay(_print_delay);
       }
+      // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
     }
-
-    // HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-    // GPIOC->ODR ^= GPIO_PIN_13; // Toggle LED
-    if (get_buttons_status(1))
-      LED_control(1);
-    else if (get_buttons_status(2))
-      LED_control(0);
-    Start_ADC_Conversion();
-    HAL_Delay(3000);
   }
 }
 
@@ -90,13 +80,10 @@ void setup()
 
   // GPIO Initialization
   setup_buttons_and_LED();
-  MX_GPIO_Init();
+  // MX_GPIO_Init();
 
   // UART Initialization
   MX_USART1_UART_Init();
-
-  // Timer Initialization
-  MX_TIM2_Init();
 
   // Display Initialization
   ssd1306_display_sofwire_Init();
@@ -154,74 +141,6 @@ void SystemClock_Config(void)
 }
 
 /**
- * @brief TIM2 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM2_Init(void)
-{
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-}
-
-/**
- * @brief TIM3 Initialization Function
- * @param None
- * @retval None
- */
-// static void MX_TIM3_Init(void)
-// {
-
-//   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-//   TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-//   htim3.Instance = TIM3;
-//   htim3.Init.Prescaler = 0;
-//   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-//   htim3.Init.Period = 65535;
-//   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-//   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-//   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
-//   {
-//     Error_Handler();
-//   }
-//   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-//   if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
-//   {
-//     Error_Handler();
-//   }
-//   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-//   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-//   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-//   {
-//     Error_Handler();
-//   }
-// }
-
-/**
  * @brief USART1 Initialization Function
  * @param None
  * @retval None
@@ -259,34 +178,6 @@ static void MX_USART1_UART_Init(void)
 //   HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
 //   HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
 // }
-
-/**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-
-  /*Configure GPIO pins : LED_pin_Pin GS_pin_Pin VI_pin_Pin */
-  GPIO_InitStruct.Pin = GS_pin_Pin | VI_pin_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  // Set to Voltage Measurement Mode
-  HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_pin_Pin, 0);
-  HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_pin_Pin, 1);
-}
 
 /**
  * @brief  This function is executed in case of error occurrence.

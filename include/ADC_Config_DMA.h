@@ -15,12 +15,15 @@
 #ifndef DMA_ADC_data_length
 #define DMA_ADC_data_length 50
 #endif
-extern uint8_t adc_PA0_data_ready_flag;
-extern int16_t adc_pa0_DMA_data[DMA_ADC_data_length];
+extern int16_t adc_Current_data[DMA_ADC_data_length];
+extern int16_t adc_Volt_data[DMA_ADC_data_length];
+extern int16_t AFC_adc_Current_data[DMA_ADC_data_length];
+extern int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
 
 // Public Function Declaration
 void setup_ADC_with_DMA();
 void set_ADC_Measure_window(uint16_t _measure_frequency);
-void Start_ADC_Conversion();
+uint8_t ADC_Data_Ready();
+void On_Timer2_Interrupt();
 
 #endif // End of ADC_CONFIG_DMA_H

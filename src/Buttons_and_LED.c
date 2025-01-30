@@ -39,7 +39,7 @@ void setup_buttons_and_LED()
     GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : LED_Pin GS_pin_Pin VI_pin_Pin */
+    /*Configure GPIO pins : LED_Pin GS_Pin VI_Pin */
     GPIO_InitStruct.Pin = LED_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;

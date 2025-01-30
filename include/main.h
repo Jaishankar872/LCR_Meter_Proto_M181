@@ -27,16 +27,6 @@ void Error_Handler(void);
 // Function Declaration for
 // DAC Sine Wave Generator "DAC_sine_wave_gen.h"
 
-#define ADC_pin_Pin GPIO_PIN_0
-#define ADC_pin_GPIO_Port GPIOA
-#define AFC_pin_Pin GPIO_PIN_1
-#define AFC_pin_GPIO_Port GPIOA
-
-#define GS_pin_Pin GPIO_PIN_6
-#define GS_pin_GPIO_Port GPIOA
-#define VI_pin_Pin GPIO_PIN_7
-#define VI_pin_GPIO_Port GPIOA
-
 #define SWDIO_Pin GPIO_PIN_13
 #define SWDIO_GPIO_Port GPIOA
 #define SWCLK_Pin GPIO_PIN_14

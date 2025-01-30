@@ -16,5 +16,6 @@
 // Public Function Declaration
 void sine_wave_setup();
 void set_sine_wave_frequency(uint16_t _set_frequency);
+void On_Timer1_Interrupt();
 #endif
 // End
