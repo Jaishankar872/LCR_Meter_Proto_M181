@@ -3,7 +3,8 @@
  * @brief SSD1306 display driver using software I2C
  * @details This is a SSD1306 display driver using software I2C
  * @date 2021-07-15
- * Developed by Jaishankar M
+ * 
+ * @author Jaishankar M
  */
 #ifndef __M181_DISPLAY_SOFTWIRE_H
 #define __M181_DISPLAY_SOFTWIRE_H

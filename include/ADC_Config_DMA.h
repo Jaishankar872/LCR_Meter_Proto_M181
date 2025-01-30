@@ -3,7 +3,7 @@
  * @brief ADC Configuration with DMA
  * This file contains the function definition for ADC Configuration with DMA
  *
- * Developed by: Jaishankar M
+ * @author Jaishankar M
  */
 #ifndef ADC_CONFIG_DMA_H
 #define ADC_CONFIG_DMA_H

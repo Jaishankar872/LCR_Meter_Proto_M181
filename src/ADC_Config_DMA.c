@@ -7,7 +7,7 @@
  * Timer3 >-> Trigger[TRGO] >-> ADC1 -> DMA1
  *       -> Memory >-> Interrupt[Full] >-> Create a Copy of the Data
  *
- * Developed by: Jaishankar M
+ * @author Jaishankar M
  */
 #include "ADC_Config_DMA.h"
 

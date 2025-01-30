@@ -1,3 +1,12 @@
+/**
+ * @file m181_display_softwire.c
+ * @brief SSD1306 display driver using software I2C
+ * @details This is a SSD1306 display driver using software I2C
+ * @date 2021-07-15
+ * 
+ * @author Jaishankar M
+ */
+
 #include "m181_display_softwire.h"
 
 // Private Includes
