@@ -45,6 +45,7 @@ void Start_ADC_Conversion();
 void GPIO_Init_VI_GS_Pin();
 void Timer2_Init_VI_switch(void);
 void Start_Timer_VI_switch();
+void Stop_Timer_VI_switch();
 void set_measure_mode(int8_t _mode1);
 
 void ADC_Init_PA0_PA1();
@@ -112,7 +113,7 @@ void ADC_Init_PA0_PA1()
     ADC_ChannelConfTypeDef sConfig = {0};
 
     hadc1.Instance = ADC1;
-    hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+    hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
     hadc1.Init.ContinuousConvMode = DISABLE;
     hadc1.Init.DiscontinuousConvMode = DISABLE;
     hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
@@ -293,7 +294,7 @@ void Timer2_Init_VI_switch(void)
     htim2.Instance = TIM2;
     htim2.Init.Prescaler = 7200;
     htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 15000; // 25000;
+    htim2.Init.Period = 6250; // 12500; // 25000;
     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
     if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -317,6 +318,12 @@ void Start_Timer_VI_switch()
 {
     // Start the Timer 2 with Interrupt
     HAL_TIM_Base_Start_IT(&htim2);
+}
+
+void Stop_Timer_VI_switch()
+{
+    // Start the Timer 2 with Interrupt
+    HAL_TIM_Base_Stop_IT(&htim2);
 }
 
 // VI Measure mode controlled by Timer 2 Interrupt
@@ -400,7 +407,7 @@ void set_measure_mode(int8_t _mode1)
             // 6. Measure Current
             measure_volt_flag = 0;
             measure_current_flag = 1; // Start Measurement
-            // Start_ADC_Conversion();
+            Start_ADC_Conversion();
         }
     }
     else if (auto_switch_VI_measure_mode)
