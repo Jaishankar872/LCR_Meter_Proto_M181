@@ -36,6 +36,11 @@ uint8_t measure_volt_flag = 0, measure_current_flag = 0;
 uint8_t GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
 volatile uint8_t _VI_measure_mode = 1, auto_switch_VI_measure_mode = 1;
 
+int16_t max_adc_Volt = 0, min_adc_Volt = 4096;
+int16_t max_adc_Volt_AFC = 0, min_adc_Volt_AFC = 4096;
+int16_t max_adc_Current = 0, min_adc_Current = 4096;
+int16_t max_adc_Current_AFC = 0, min_adc_Current_AFC = 4096;
+
 // Private Function Declaration
 void Timer3_Init_ADC();
 void DMA_Init_ADC();
@@ -220,22 +225,60 @@ void separate_ADC_CH_from_DMA()
 {
     if (measure_volt_flag && !measure_current_flag)
     {
+        // Reset the value before get into the loop
+        max_adc_Volt = 0;
+        min_adc_Volt = 4096;
+        max_adc_Volt_AFC = 0;
+        min_adc_Volt_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length * 2; i++)
         {
             if (i % 2 == 0)
+            {
                 adc_Volt_data[i / 2] = raw_adc_DMA_data[i];
+                // Maximum & Minimum calculation
+                if (adc_Volt_data[i / 2] > max_adc_Volt)
+                    max_adc_Volt = adc_Volt_data[i / 2];
+                if (adc_Volt_data[i / 2] < min_adc_Volt)
+                    min_adc_Volt = adc_Volt_data[i / 2];
+            }
             else if (i % 2 == 1)
+            {
                 AFC_adc_Volt_data[i / 2] = raw_adc_DMA_data[i];
+                // Maximum & Minimum calculation
+                if (AFC_adc_Volt_data[i / 2] > max_adc_Volt_AFC)
+                    max_adc_Volt_AFC = AFC_adc_Volt_data[i / 2];
+                if (AFC_adc_Volt_data[i / 2] < min_adc_Volt_AFC)
+                    min_adc_Volt_AFC = AFC_adc_Volt_data[i / 2];
+            }
         }
     }
     else if (!measure_volt_flag && measure_current_flag)
     {
+        // Reset the value before get into the loop
+        max_adc_Current = 0;
+        min_adc_Current = 4096;
+        max_adc_Current_AFC = 0;
+        min_adc_Current_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length * 2; i++)
         {
             if (i % 2 == 0)
+            {
                 adc_Current_data[i / 2] = raw_adc_DMA_data[i];
+                // Maximum & Minimum calculation
+                if (adc_Current_data[i / 2] > max_adc_Current)
+                    max_adc_Current = adc_Current_data[i / 2];
+                if (adc_Current_data[i / 2] < min_adc_Current)
+                    min_adc_Current = adc_Current_data[i / 2];
+            }
             else if (i % 2 == 1)
+            {
                 AFC_adc_Current_data[i / 2] = raw_adc_DMA_data[i];
+                // Maximum & Minimum calculation
+                if (AFC_adc_Current_data[i / 2] > max_adc_Current_AFC)
+                    max_adc_Current_AFC = AFC_adc_Current_data[i / 2];
+                if (AFC_adc_Current_data[i / 2] < min_adc_Current_AFC)
+                    min_adc_Current_AFC = AFC_adc_Current_data[i / 2];
+            }
         }
         adc_read_complete_flag_DMA = 1; // Only after the Current Completion
     }
@@ -257,6 +300,29 @@ void Start_ADC_Conversion()
 {
     // Restart the ADC
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length * 2);
+}
+
+float adc_volt_convert(int16_t raw_adc)
+{
+    int16_t adc_res = 4096;
+    float adc_ref = 3.3;
+    float volt_reading1 = 0;
+    volt_reading1 = (float)adc_ref * raw_adc;
+    volt_reading1 /= adc_res;
+    return volt_reading1;
+}
+
+void get_adc_reading(system_data *_adc_data) // Pointer used to edit in struct value
+{
+    int16_t _pk_pk;
+    _pk_pk = max_adc_Volt - min_adc_Volt;
+    _adc_data->pk_pk_voltage = adc_volt_convert(_pk_pk);
+    _pk_pk = max_adc_Volt_AFC - min_adc_Volt_AFC;
+    _adc_data->pk_pk_AFC_volt = adc_volt_convert(_pk_pk);
+    _pk_pk = max_adc_Current - min_adc_Current;
+    _adc_data->pk_pk_current = adc_volt_convert(_pk_pk);
+    _pk_pk = max_adc_Current_AFC - min_adc_Current_AFC;
+    _adc_data->pk_pk_AFC_current = adc_volt_convert(_pk_pk);
 }
 
 void GPIO_Init_VI_GS_Pin()

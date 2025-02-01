@@ -21,10 +21,14 @@ extern int16_t adc_Volt_data[DMA_ADC_data_length];
 extern int16_t AFC_adc_Current_data[DMA_ADC_data_length];
 extern int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
 
+// Public Variable Declaration
+
 // Public Function Declaration
 void setup_ADC_with_DMA();
 void set_ADC_Measure_window(uint16_t _measure_frequency);
 uint8_t ADC_Data_Ready();
+float adc_volt_convert(int16_t raw_adc);
+void get_adc_reading(system_data* _adc_data);
 void On_Timer2_Interrupt();
 
 #endif // End of ADC_CONFIG_DMA_H

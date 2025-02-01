@@ -30,11 +30,7 @@ void SystemClock_Config(void);
 static void setup_UART(void);
 
 // Private Variable Declaration
-#define DMA_ADC_data_length 50
-int16_t adc_Current_data[DMA_ADC_data_length];
-int16_t adc_Volt_data[DMA_ADC_data_length];
-int16_t AFC_adc_Current_data[DMA_ADC_data_length];
-int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
+// Refer the file name "system_data.h"
 
 system_data process_data; // From file name "system_data.h"
 
@@ -100,11 +96,15 @@ void system_loop()
     // Update the display
     screen1_home_print(process_data);
   }
-  if (process_data.uart_all_print_DSO)
+  if (ADC_Data_Ready() == 1)
   {
-    if (ADC_Data_Ready() == 1)
-    {
+    // First Read -> Display value
+    get_adc_reading(&process_data);
+    // Update the display
+    screen1_home_print(process_data);
 
+    if (process_data.uart_all_print_DSO)
+    {
       const int _print_delay = 20; // Milli Seconds
       // printf("Via DMA interrupt Callback function\n");
       for (int i = 0; i < DMA_ADC_data_length; i++)

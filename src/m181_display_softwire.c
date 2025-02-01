@@ -47,15 +47,15 @@ void ssd1306_display_sofwire_Init(void)
 void screen1_home_print(system_data _display)
 {
     // Line number variable declaration
-    uint8_t _line_spacing_y = 10;
+    uint8_t _line_spacing_y = 11;
     uint8_t _line1_position_y = 8 + _line_spacing_y;
     uint8_t _line2_position_y = _line1_position_y + _line_spacing_y;
     uint8_t _line3_position_y = _line2_position_y + _line_spacing_y;
     uint8_t _line4_position_y = _line3_position_y + _line_spacing_y;
 
     uint8_t _offset_position_x = 5;
-    uint8_t _value_position_x = 50;
-    uint8_t _unit_position_x = 80;
+    uint8_t _value_position_x = 48;
+    uint8_t _unit_position_x = 85;
 
     if (_screen1_print_one_time)
     {
@@ -76,12 +76,12 @@ void screen1_home_print(system_data _display)
 
         ssd1306_SetCursor(_offset_position_x, _line3_position_y);
         ssd1306_WriteString("Volt :", Font_7x10, White);
-        ssd1306_SetCursor(_unit_position_x, _line3_position_y);
+        ssd1306_SetCursor(_unit_position_x + 2, _line3_position_y);
         ssd1306_WriteString("V", Font_7x10, White);
 
         ssd1306_SetCursor(_offset_position_x, _line4_position_y);
         ssd1306_WriteString(" Amp :", Font_7x10, White);
-        ssd1306_SetCursor(_unit_position_x, _line4_position_y);
+        ssd1306_SetCursor(_unit_position_x + 2, _line4_position_y);
         ssd1306_WriteString("V", Font_7x10, White);
         // Update the display
         ssd1306_UpdateScreen();
@@ -100,6 +100,16 @@ void screen1_home_print(system_data _display)
         sprintf(buffer_display, "ON ");
     else
         sprintf(buffer_display, "OFF");
+    ssd1306_WriteString(buffer_display, Font_7x10, White);
+
+    // Write Volt
+    ssd1306_SetCursor(_value_position_x, _line3_position_y);
+    sprintf(buffer_display, "%.3f", _display.pk_pk_voltage);
+    ssd1306_WriteString(buffer_display, Font_7x10, White);
+
+    // Write Amp
+    ssd1306_SetCursor(_value_position_x, _line4_position_y);
+    sprintf(buffer_display, "%.3f", _display.pk_pk_current);
     ssd1306_WriteString(buffer_display, Font_7x10, White);
 
     // Update the display
