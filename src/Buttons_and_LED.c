@@ -22,6 +22,7 @@
 #define LED_pin_GPIO_Port GPIOA
 
 volatile uint8_t _btn1_hold_flag = 0, _btn2_sp_flag = 0, _btn3_rcl_flag = 0;
+uint32_t _btn1_time = 0, _btn2_time = 0, _btn3_time = 0;
 
 // Private Function Declaration
 
@@ -125,6 +126,29 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
 {
     uint8_t _change_happen = 0;
 
+    // Adding minimum gap to accept the button input
+    uint32_t _minimum_time = 800; // MilliSeconds
+    uint32_t _current_time = HAL_GetTick(), _delta_time = 0;
+
+    if (_btn1_hold_flag)
+    {
+        _delta_time = _current_time - _btn1_time;
+        if (_delta_time < _minimum_time)
+            _btn1_hold_flag = 0; // Clear the flag
+    }
+    if (_btn2_sp_flag)
+    {
+        _delta_time = _current_time - _btn2_time;
+        if (_delta_time < _minimum_time)
+            _btn2_sp_flag = 0; // Clear the flag
+    }
+    if (_btn3_rcl_flag)
+    {
+        _delta_time = _current_time - _btn3_time;
+        if (_delta_time < _minimum_time)
+            _btn3_rcl_flag = 0; // Clear the flag
+    }
+
     if (get_buttons_status(1)) // Button 1 HOLD
     {
         // _control the frequency
@@ -142,6 +166,7 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
             _control->set_freq = _frequency_array[3];
 
         _change_happen = 1;
+        _btn1_time = HAL_GetTick();
     }
 
     if (get_buttons_status(2)) // Button 2 S/P
@@ -149,6 +174,7 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
         // Yet to add
         _control->uart_all_print_DSO = !_control->uart_all_print_DSO;
         _change_happen = 1;
+        _btn2_time = HAL_GetTick();
     }
 
     if (get_buttons_status(3)) // Button 3 RCL
@@ -157,6 +183,7 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
         _control->led_state = !_control->led_state;
         LED_control(_control->led_state);
         _change_happen = 1;
+        _btn3_time = HAL_GetTick();
     }
 
     return _change_happen;
