@@ -62,7 +62,11 @@ void screen1_home_print(system_data _display)
         _screen1_print_one_time = 0; // Clear the flag
                                      // Write data to local screenbuffer
         ssd1306_SetCursor(_offset_position_x, 0);
-        ssd1306_WriteString("M181 LCR", Font_11x18, White);
+        ssd1306_WriteString("LCR Ser", Font_11x18, White);
+
+        ssd1306_SetCursor(92, 0);
+        sprintf(buffer_display, "V%.2f", fw_version);
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
 
         ssd1306_SetCursor(_offset_position_x, _line1_position_y);
         ssd1306_WriteString("Freq :", Font_7x10, White);
