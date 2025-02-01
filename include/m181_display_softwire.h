@@ -9,6 +9,9 @@
 #ifndef __M181_DISPLAY_SOFTWIRE_H
 #define __M181_DISPLAY_SOFTWIRE_H
 
+// Include files
+#include "system_data.h"
+
 // Public Variable Declaration for Software I2C
 #define SW_I2C_SDA_GPIO_Port GPIOA
 #define SW_I2C_SDA_Pin GPIO_PIN_3

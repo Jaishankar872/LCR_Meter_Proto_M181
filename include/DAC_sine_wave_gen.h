@@ -12,6 +12,7 @@
 
 // Include Header Files
 #include "stm32f1xx_hal.h"
+#include "system_data.h"
 
 // Public Function Declaration
 void sine_wave_setup();

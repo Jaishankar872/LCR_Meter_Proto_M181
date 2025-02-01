@@ -10,6 +10,7 @@
 
 // Include Header Files
 #include "stm32f1xx_hal.h"
+#include "system_data.h"
 
 // Public Variable Declaration
 #ifndef DMA_ADC_data_length
