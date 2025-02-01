@@ -23,13 +23,10 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
 
-void setup();
+void system_setup();
+void system_loop();
 void SystemClock_Config(void);
-// static void MX_GPIO_Init(void);
-static void MX_USART1_UART_Init(void);
-
-// static void MX_TIM2_Init(void);
-// static void MX_TIM3_Init(void);
+static void setup_UART(void);
 
 // Private Variable Declaration
 #define DMA_ADC_data_length 50
@@ -48,25 +45,14 @@ int _write(int file, char *ptr, int len)
 int main(void)
 {
 
-  setup();
+  system_setup();
   while (1)
   {
-    if (ADC_Data_Ready() == 1)
-    {
-
-      const int _print_delay = 20; // Milli Seconds
-      // printf("Via DMA interrupt Callback function\n");
-      for (int i = 0; i < DMA_ADC_data_length; i++)
-      {
-        printf("%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i]);
-        HAL_Delay(_print_delay);
-      }
-      // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
-    }
+    system_loop();
   }
 }
 
-void setup()
+void system_setup()
 {
   // Syatem & HAL Initialization
   HAL_Init();
@@ -80,10 +66,9 @@ void setup()
 
   // GPIO Initialization
   setup_buttons_and_LED();
-  // MX_GPIO_Init();
 
   // UART Initialization
-  MX_USART1_UART_Init();
+  setup_UART();
 
   // Display Initialization
   ssd1306_display_sofwire_Init();
@@ -93,6 +78,22 @@ void setup()
   set_sine_wave_frequency(_freq);
   print_home_screen(_freq);
   set_ADC_Measure_window(_freq);
+}
+
+void system_loop()
+{
+  if (ADC_Data_Ready() == 1)
+  {
+
+    const int _print_delay = 20; // Milli Seconds
+    // printf("Via DMA interrupt Callback function\n");
+    for (int i = 0; i < DMA_ADC_data_length; i++)
+    {
+      printf("%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i]);
+      HAL_Delay(_print_delay);
+    }
+    // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
+  }
 }
 
 /**
@@ -140,12 +141,7 @@ void SystemClock_Config(void)
   }
 }
 
-/**
- * @brief USART1 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_USART1_UART_Init(void)
+static void setup_UART(void)
 {
   huart1.Instance = USART1;
   huart1.Init.BaudRate = 115200;
@@ -161,28 +157,6 @@ static void MX_USART1_UART_Init(void)
   }
 }
 
-/**
- * Enable DMA controller clock
- */
-// static void MX_DMA_Init(void)
-// {
-
-//   /* DMA controller clock enable */
-//   __HAL_RCC_DMA1_CLK_ENABLE();
-
-//   /* DMA interrupt init */
-//   /* DMA1_Channel1_IRQn interrupt configuration */
-//   HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
-//   HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-//   /* DMA1_Channel4_IRQn interrupt configuration */
-//   HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
-//   HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-// }
-
-/**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
