@@ -3,7 +3,7 @@
  * @brief SSD1306 display driver using software I2C
  * @details This is a SSD1306 display driver using software I2C
  * @date 2021-07-15
- * 
+ *
  * @author Jaishankar M
  */
 
@@ -21,6 +21,7 @@
 
 uint16_t counter_display = 0;
 char buffer_display[20];
+uint8_t _screen1_print_one_time = 0;
 
 // Private Function Declaration
 void software_I2C_GPIO_init();
@@ -39,37 +40,68 @@ void ssd1306_display_sofwire_Init(void)
     ssd1306_Fill(Black);
     ssd1306_UpdateScreen();
 
-    // Write data to local screenbuffer
-    ssd1306_SetCursor(0, 0);
-    ssd1306_WriteString("M181 LCR", Font_11x18, White);
-
-    ssd1306_SetCursor(0, 42);
-    ssd1306_WriteString("JAI", Font_11x18, White);
-
-    // Draw rectangle on screen
-    for (uint8_t i = 0; i < 28; i++)
-    {
-        for (uint8_t j = 0; j < 64; j++)
-        {
-            ssd1306_DrawPixel(100 + i, 0 + j, White);
-        }
-    }
-
-    // Copy all data from local screenbuffer to the screen
-    ssd1306_UpdateScreen();
-
-    // Update the display
-    ssd1306_UpdateScreen();
+    // Setting the one time print flag
+    _screen1_print_one_time = 1;
 }
 
-void print_home_screen(int _frequency)
+void screen1_home_print(system_data _display)
 {
-    ssd1306_SetCursor(20, 23);
-    if (_frequency >= 1000)
-        sprintf(buffer_display, "Freq->%d", _frequency);
+    // Line number variable declaration
+    uint8_t _line_spacing_y = 10;
+    uint8_t _line1_position_y = 8 + _line_spacing_y;
+    uint8_t _line2_position_y = _line1_position_y + _line_spacing_y;
+    uint8_t _line3_position_y = _line2_position_y + _line_spacing_y;
+    uint8_t _line4_position_y = _line3_position_y + _line_spacing_y;
+
+    uint8_t _offset_position_x = 5;
+    uint8_t _value_position_x = 50;
+    uint8_t _unit_position_x = 80;
+
+    if (_screen1_print_one_time)
+    {
+        _screen1_print_one_time = 0; // Clear the flag
+                                     // Write data to local screenbuffer
+        ssd1306_SetCursor(_offset_position_x, 0);
+        ssd1306_WriteString("M181 LCR", Font_11x18, White);
+
+        ssd1306_SetCursor(_offset_position_x, _line1_position_y);
+        ssd1306_WriteString("Freq :", Font_7x10, White);
+        ssd1306_SetCursor(_unit_position_x, _line1_position_y);
+        ssd1306_WriteString("Hz", Font_7x10, White);
+
+        ssd1306_SetCursor(_offset_position_x, _line2_position_y);
+        ssd1306_WriteString("UART :", Font_7x10, White);
+        ssd1306_SetCursor(_unit_position_x, _line2_position_y);
+        ssd1306_WriteString("**", Font_7x10, White);
+
+        ssd1306_SetCursor(_offset_position_x, _line3_position_y);
+        ssd1306_WriteString("Volt :", Font_7x10, White);
+        ssd1306_SetCursor(_unit_position_x, _line3_position_y);
+        ssd1306_WriteString("V", Font_7x10, White);
+
+        ssd1306_SetCursor(_offset_position_x, _line4_position_y);
+        ssd1306_WriteString(" Amp :", Font_7x10, White);
+        ssd1306_SetCursor(_unit_position_x, _line4_position_y);
+        ssd1306_WriteString("V", Font_7x10, White);
+        // Update the display
+        ssd1306_UpdateScreen();
+    }
+    // Write Frequency value
+    ssd1306_SetCursor(_value_position_x, _line1_position_y);
+    if (_display.set_freq >= 1000)
+        sprintf(buffer_display, "%d", _display.set_freq);
     else
-        sprintf(buffer_display, "Freq->%d ", _frequency);
+        sprintf(buffer_display, "%d ", _display.set_freq);
     ssd1306_WriteString(buffer_display, Font_7x10, White);
+
+    // Write UART Mode
+    ssd1306_SetCursor(_value_position_x, _line2_position_y);
+    if (_display.uart_all_print_DSO)
+        sprintf(buffer_display, "ON ");
+    else
+        sprintf(buffer_display, "OFF");
+    ssd1306_WriteString(buffer_display, Font_7x10, White);
+
     // Update the display
     ssd1306_UpdateScreen();
 }

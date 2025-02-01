@@ -12,6 +12,7 @@
 #include "main.h"
 #include "string.h"
 #include "stdio.h"
+#include "system_data.h"
 #include "m181_display_softwire.h"
 #include "DAC_sine_wave_gen.h"
 #include "ADC_Config_DMA.h"
@@ -34,6 +35,8 @@ int16_t adc_Current_data[DMA_ADC_data_length];
 int16_t adc_Volt_data[DMA_ADC_data_length];
 int16_t AFC_adc_Current_data[DMA_ADC_data_length];
 int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
+
+system_data process_data; // From file name "system_data.h"
 
 // [Temp]Redirect printf to UART
 int _write(int file, char *ptr, int len)
@@ -73,26 +76,44 @@ void system_setup()
   // Display Initialization
   ssd1306_display_sofwire_Init();
 
-  // Set DAC Frequency
-  u_int16_t _freq = 800;
-  set_sine_wave_frequency(_freq);
-  print_home_screen(_freq);
-  set_ADC_Measure_window(_freq);
+  // Default: Set-> Update -> Display ** Must required
+  // Set
+  process_data.set_freq = 500;         // Default frequency
+  process_data.uart_all_print_DSO = 0; // Default Mode
+  // Update
+  set_sine_wave_frequency(process_data.set_freq);
+  set_ADC_Measure_window(process_data.set_freq);
+  // Display
+  screen1_home_print(process_data);
 }
 
 void system_loop()
 {
-  if (ADC_Data_Ready() == 1)
+  // Read the control parameter & if Changes happen then
+  if (on_button_event(&process_data))
   {
 
-    const int _print_delay = 20; // Milli Seconds
-    // printf("Via DMA interrupt Callback function\n");
-    for (int i = 0; i < DMA_ADC_data_length; i++)
+    // Set the based on the data
+    set_sine_wave_frequency(process_data.set_freq);
+    set_ADC_Measure_window(process_data.set_freq);
+
+    // Update the display
+    screen1_home_print(process_data);
+  }
+  if (process_data.uart_all_print_DSO)
+  {
+    if (ADC_Data_Ready() == 1)
     {
-      printf("%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i]);
-      HAL_Delay(_print_delay);
+
+      const int _print_delay = 20; // Milli Seconds
+      // printf("Via DMA interrupt Callback function\n");
+      for (int i = 0; i < DMA_ADC_data_length; i++)
+      {
+        printf("%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i]);
+        HAL_Delay(_print_delay);
+      }
+      // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
     }
-    // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
   }
 }
 

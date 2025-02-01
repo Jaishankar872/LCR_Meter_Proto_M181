@@ -87,7 +87,8 @@ uint8_t get_buttons_status(uint8_t _pin_number)
     }
     else if (_pin_number == 2)
     {
-        if (_btn2_sp_flag){
+        if (_btn2_sp_flag)
+        {
             _return_status = 1;
             _btn2_sp_flag = 0; // Clear flag After reading
         }
@@ -96,7 +97,8 @@ uint8_t get_buttons_status(uint8_t _pin_number)
     }
     else if (_pin_number == 3)
     {
-        if (_btn3_rcl_flag){
+        if (_btn3_rcl_flag)
+        {
             _return_status = 1;
             _btn3_rcl_flag = 0; // Clear flag After reading
         }
@@ -117,4 +119,45 @@ void LED_control(uint8_t _led_state)
         LED_pin_GPIO_Port->BSRR = LED_Pin; // Set PA5 High
     else
         LED_pin_GPIO_Port->BRR = LED_Pin; // Set PA5 Low
+}
+
+uint8_t on_button_event(system_data *_control) // Pointer used to edit send value
+{
+    uint8_t _change_happen = 0;
+
+    if (get_buttons_status(1)) // Button 1 HOLD
+    {
+        // _control the frequency
+        uint16_t _frequency_array[4] = {100, 500, 800, 1000};
+
+        if (_frequency_array[0] == _control->set_freq)
+            _control->set_freq = _frequency_array[1];
+        else if (_frequency_array[1] == _control->set_freq)
+            _control->set_freq = _frequency_array[2];
+        else if (_frequency_array[2] == _control->set_freq)
+            _control->set_freq = _frequency_array[3];
+        else if (_frequency_array[3] == _control->set_freq)
+            _control->set_freq = _frequency_array[0];
+        else
+            _control->set_freq = _frequency_array[3];
+
+        _change_happen = 1;
+    }
+
+    if (get_buttons_status(2)) // Button 2 S/P
+    {
+        // Yet to add
+        _control->uart_all_print_DSO = !_control->uart_all_print_DSO;
+        _change_happen = 1;
+    }
+
+    if (get_buttons_status(3)) // Button 3 RCL
+    {
+        // Yet to add
+        _control->led_state = !_control->led_state;
+        LED_control(_control->led_state);
+        _change_happen = 1;
+    }
+
+    return _change_happen;
 }

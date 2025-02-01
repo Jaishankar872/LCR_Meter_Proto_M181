@@ -414,12 +414,10 @@ void set_measure_mode(int8_t _mode1)
     {
         if (measure_volt_flag && !measure_current_flag)
         {
-            GPIOA->BSRR = GPIO_PIN_5; // Set PA5 High
             Start_ADC_Conversion();   // Measure Voltage
         }
         if (!measure_volt_flag && measure_current_flag)
         {
-            GPIOA->BRR = GPIO_PIN_5; // Set PA5 LOW
             Start_ADC_Conversion();  // Measure Current
         }
     }

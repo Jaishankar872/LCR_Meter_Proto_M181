@@ -20,6 +20,6 @@
 
 // Public Function Declaration
 void ssd1306_display_sofwire_Init(void);
-void print_home_screen(int _frequency);
+void screen1_home_print(system_data _display);
 
 #endif // __M181_DISPLAY_SOFTWIRE_H

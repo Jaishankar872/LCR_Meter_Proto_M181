@@ -12,6 +12,7 @@ typedef struct system_data
     uint8_t led_state;
     int8_t VI_measure_mode;
     float pk_pk_voltage, pk_pk_AFC_volt, pk_pk_current, pk_pk_AFC_current;
+    uint8_t uart_all_print_DSO;
 } system_data;
 
 // Declare the global variable

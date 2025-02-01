@@ -14,5 +14,5 @@
 
 // Public Function Declaration
 void setup_buttons_and_LED();
-uint8_t get_buttons_status(uint8_t _pin_number);
+uint8_t on_button_event(system_data* _control);
 void LED_control(uint8_t _led_state);
