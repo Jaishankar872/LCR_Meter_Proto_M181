@@ -201,6 +201,11 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
             Error_Handler();
         }
     }
+
+    // After the Windows Reset the following flag
+    adc_read_complete_flag_DMA = 0; // Re-Capture the Reading
+    _VI_measure_mode = 1;           // Reset VI Switch Position
+    set_measure_mode(_VI_measure_mode); // GPIO State
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
@@ -230,26 +235,21 @@ void separate_ADC_CH_from_DMA()
         min_adc_Volt = 4096;
         max_adc_Volt_AFC = 0;
         min_adc_Volt_AFC = 4096;
-        for (int i = 0; i < DMA_ADC_data_length * 2; i++)
+        for (int i = 0; i < DMA_ADC_data_length; i++)
         {
-            if (i % 2 == 0)
-            {
-                adc_Volt_data[i / 2] = raw_adc_DMA_data[i];
-                // Maximum & Minimum calculation
-                if (adc_Volt_data[i / 2] > max_adc_Volt)
-                    max_adc_Volt = adc_Volt_data[i / 2];
-                if (adc_Volt_data[i / 2] < min_adc_Volt)
-                    min_adc_Volt = adc_Volt_data[i / 2];
-            }
-            else if (i % 2 == 1)
-            {
-                AFC_adc_Volt_data[i / 2] = raw_adc_DMA_data[i];
-                // Maximum & Minimum calculation
-                if (AFC_adc_Volt_data[i / 2] > max_adc_Volt_AFC)
-                    max_adc_Volt_AFC = AFC_adc_Volt_data[i / 2];
-                if (AFC_adc_Volt_data[i / 2] < min_adc_Volt_AFC)
-                    min_adc_Volt_AFC = AFC_adc_Volt_data[i / 2];
-            }
+            adc_Volt_data[i] = raw_adc_DMA_data[i * 2];
+            AFC_adc_Volt_data[i] = raw_adc_DMA_data[i * 2 + 1];
+
+            // Maximum & Minimum calculation
+            if (adc_Volt_data[i] > max_adc_Volt)
+                max_adc_Volt = adc_Volt_data[i];
+            if (adc_Volt_data[i] < min_adc_Volt)
+                min_adc_Volt = adc_Volt_data[i];
+            // Maximum & Minimum calculation - AFC
+            if (AFC_adc_Volt_data[i] > max_adc_Volt_AFC)
+                max_adc_Volt_AFC = AFC_adc_Volt_data[i];
+            if (AFC_adc_Volt_data[i] < min_adc_Volt_AFC)
+                min_adc_Volt_AFC = AFC_adc_Volt_data[i];
         }
         adc_read_complete_flag_DMA = 3; // Voltage data Ready & Current data start Capturing
     }
@@ -260,26 +260,21 @@ void separate_ADC_CH_from_DMA()
         min_adc_Current = 4096;
         max_adc_Current_AFC = 0;
         min_adc_Current_AFC = 4096;
-        for (int i = 0; i < DMA_ADC_data_length * 2; i++)
+        for (int i = 0; i < DMA_ADC_data_length; i++)
         {
-            if (i % 2 == 0)
-            {
-                adc_Current_data[i / 2] = raw_adc_DMA_data[i];
-                // Maximum & Minimum calculation
-                if (adc_Current_data[i / 2] > max_adc_Current)
-                    max_adc_Current = adc_Current_data[i / 2];
-                if (adc_Current_data[i / 2] < min_adc_Current)
-                    min_adc_Current = adc_Current_data[i / 2];
-            }
-            else if (i % 2 == 1)
-            {
-                AFC_adc_Current_data[i / 2] = raw_adc_DMA_data[i];
-                // Maximum & Minimum calculation
-                if (AFC_adc_Current_data[i / 2] > max_adc_Current_AFC)
-                    max_adc_Current_AFC = AFC_adc_Current_data[i / 2];
-                if (AFC_adc_Current_data[i / 2] < min_adc_Current_AFC)
-                    min_adc_Current_AFC = AFC_adc_Current_data[i / 2];
-            }
+            adc_Current_data[i] = raw_adc_DMA_data[i * 2];
+            AFC_adc_Current_data[i] = raw_adc_DMA_data[i * 2 + 1];
+
+            // Maximum & Minimum calculation
+            if (adc_Current_data[i] > max_adc_Current)
+                max_adc_Current = adc_Current_data[i];
+            if (adc_Current_data[i] < min_adc_Current)
+                min_adc_Current = adc_Current_data[i];
+            // Maximum & Minimum calculation -AFC
+            if (AFC_adc_Current_data[i] > max_adc_Current_AFC)
+                max_adc_Current_AFC = AFC_adc_Current_data[i];
+            if (AFC_adc_Current_data[i] < min_adc_Current_AFC)
+                min_adc_Current_AFC = AFC_adc_Current_data[i];
         }
         adc_read_complete_flag_DMA = 4; // Both are voltage and current data Ready
     }
