@@ -251,6 +251,7 @@ void separate_ADC_CH_from_DMA()
                     min_adc_Volt_AFC = AFC_adc_Volt_data[i / 2];
             }
         }
+        adc_read_complete_flag_DMA = 3; // Voltage data Ready & Current data start Capturing
     }
     else if (!measure_volt_flag && measure_current_flag)
     {
@@ -280,20 +281,19 @@ void separate_ADC_CH_from_DMA()
                     min_adc_Current_AFC = AFC_adc_Current_data[i / 2];
             }
         }
-        adc_read_complete_flag_DMA = 1; // Only after the Current Completion
+        adc_read_complete_flag_DMA = 4; // Both are voltage and current data Ready
     }
-    // adc_read_complete_flag_DMA = 1;
 }
 
 uint8_t ADC_Data_Ready()
 {
-    if (adc_read_complete_flag_DMA)
+    if (adc_read_complete_flag_DMA == 3)
     {
         adc_read_complete_flag_DMA = 0;
-        return 1;
+        return 3;
     }
     else
-        return 0;
+        return adc_read_complete_flag_DMA;
 }
 
 void Start_ADC_Conversion()
@@ -464,13 +464,15 @@ void set_measure_mode(int8_t _mode1)
         if (_mode1 == 2)
         {
             // 3. Measure Voltage
-            measure_volt_flag = 1; // Start Measurement
+            adc_read_complete_flag_DMA = 1; // Voltage data start Capturing
+            measure_volt_flag = 1;          // Start Measurement
             measure_current_flag = 0;
             Start_ADC_Conversion();
         }
         else if (_mode1 == 5)
         {
             // 6. Measure Current
+            adc_read_complete_flag_DMA = 2; // Current data start Capturing
             measure_volt_flag = 0;
             measure_current_flag = 1; // Start Measurement
             Start_ADC_Conversion();
@@ -480,11 +482,11 @@ void set_measure_mode(int8_t _mode1)
     {
         if (measure_volt_flag && !measure_current_flag)
         {
-            Start_ADC_Conversion();   // Measure Voltage
+            Start_ADC_Conversion(); // Measure Voltage
         }
         if (!measure_volt_flag && measure_current_flag)
         {
-            Start_ADC_Conversion();  // Measure Current
+            Start_ADC_Conversion(); // Measure Current
         }
     }
 }
