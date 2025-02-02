@@ -96,7 +96,9 @@ void system_loop()
     // Update the display
     screen1_home_print(process_data);
   }
-  if (ADC_Data_Ready() == 1)
+  
+  process_data.adc_measure_status = ADC_Data_Ready();
+  if (process_data.adc_measure_status == 3)
   {
     // First Read -> Display value
     get_adc_reading(&process_data);
@@ -114,6 +116,11 @@ void system_loop()
       }
       // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
     }
+  }
+  else
+  {
+    // Update the display
+    screen1_home_print(process_data);
   }
 }
 

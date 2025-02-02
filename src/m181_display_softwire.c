@@ -90,32 +90,46 @@ void screen1_home_print(system_data _display)
         // Update the display
         ssd1306_UpdateScreen();
     }
-    // Write Frequency value
-    ssd1306_SetCursor(_value_position_x, _line1_position_y);
-    if (_display.set_freq >= 1000)
-        sprintf(buffer_display, "%d", _display.set_freq);
-    else
-        sprintf(buffer_display, "%d ", _display.set_freq);
-    ssd1306_WriteString(buffer_display, Font_7x10, White);
 
-    // Write UART Mode
-    ssd1306_SetCursor(_value_position_x, _line2_position_y);
-    if (_display.uart_all_print_DSO)
-        sprintf(buffer_display, "ON ");
-    else
-        sprintf(buffer_display, "OFF");
-    ssd1306_WriteString(buffer_display, Font_7x10, White);
+    if (_display.adc_measure_status == 3)
+    {
+        // Write Frequency value
+        ssd1306_SetCursor(_value_position_x, _line1_position_y);
+        if (_display.set_freq >= 1000)
+            sprintf(buffer_display, "%d", _display.set_freq);
+        else
+            sprintf(buffer_display, "%d ", _display.set_freq);
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
 
-    // Write Volt
-    ssd1306_SetCursor(_value_position_x, _line3_position_y);
-    sprintf(buffer_display, "%.3f", _display.pk_pk_voltage);
-    ssd1306_WriteString(buffer_display, Font_7x10, White);
+        // Write UART Mode
+        ssd1306_SetCursor(_value_position_x, _line2_position_y);
+        if (_display.uart_all_print_DSO)
+            sprintf(buffer_display, "ON ");
+        else
+            sprintf(buffer_display, "OFF");
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
 
-    // Write Amp
-    ssd1306_SetCursor(_value_position_x, _line4_position_y);
-    sprintf(buffer_display, "%.3f", _display.pk_pk_current);
-    ssd1306_WriteString(buffer_display, Font_7x10, White);
+        // Write Volt
+        ssd1306_SetCursor(_value_position_x, _line3_position_y);
+        if (_display.pk_pk_voltage >= 0) // Only Positive Value
+            sprintf(buffer_display, "%.3f", _display.pk_pk_voltage);
+        else
+            sprintf(buffer_display, "0.000");
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
 
+        // Write Amp
+        ssd1306_SetCursor(_value_position_x, _line4_position_y);
+        if (_display.pk_pk_current >= 0) // Only Positive Value
+            sprintf(buffer_display, "%.3f", _display.pk_pk_current);
+        else
+            sprintf(buffer_display, "0.000");
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
+    }
+
+    // Status
+    ssd1306_SetCursor(_unit_position_x + 25, _line3_position_y);
+    sprintf(buffer_display, "%d", _display.adc_measure_status);
+    ssd1306_WriteString(buffer_display, Font_7x10, White);
     // Update the display
     ssd1306_UpdateScreen();
 }
