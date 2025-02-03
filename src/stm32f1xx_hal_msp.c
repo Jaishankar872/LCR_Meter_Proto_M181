@@ -119,7 +119,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
     hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
     hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
     hdma_adc1.Init.Mode = DMA_CIRCULAR;
-    hdma_adc1.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+    hdma_adc1.Init.Priority = DMA_PRIORITY_HIGH;
     if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
     {
       Error_Handler();
@@ -133,6 +133,12 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
     /* USER CODE BEGIN ADC1_MspInit 1 */
 
     /* USER CODE END ADC1_MspInit 1 */
+  }
+  if (hadc->Instance == ADC2)
+  {
+    __HAL_RCC_ADC2_CLK_ENABLE();
+    HAL_NVIC_SetPriority(ADC1_2_IRQn, 1, 0); // PreemptPriority = 1, SubPriority = 0
+    HAL_NVIC_EnableIRQ(ADC1_2_IRQn);         // 2. ADC
   }
 }
 
@@ -162,10 +168,15 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
     HAL_DMA_DeInit(hadc->DMA_Handle);
 
     /* ADC1 interrupt DeInit */
-    HAL_NVIC_DisableIRQ(ADC1_2_IRQn);
+    // HAL_NVIC_DisableIRQ(ADC1_2_IRQn);
     /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
     /* USER CODE END ADC1_MspDeInit 1 */
+  }
+  if (hadc->Instance == ADC2)
+  {
+    __HAL_RCC_ADC2_CLK_DISABLE();
+    HAL_NVIC_DisableIRQ(ADC1_2_IRQn);
   }
 }
 
@@ -185,8 +196,8 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim_base)
     /* Peripheral clock enable */
     __HAL_RCC_TIM1_CLK_ENABLE();
     /* USER CODE BEGIN TIM1_MspInit 1 */
-    HAL_NVIC_SetPriority(TIM1_UP_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
+    HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0); // PreemptPriority = 2, SubPriority = 0
+    HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);         // 3. Timer 1 DAC
 
     /* USER CODE END TIM1_MspInit 1 */
   }
@@ -198,8 +209,8 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim_base)
     /* Peripheral clock enable */
     __HAL_RCC_TIM2_CLK_ENABLE();
     /* USER CODE BEGIN TIM2_MspInit 1 */
-    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(TIM2_IRQn);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 3, 0); // PreemptPriority = 3, SubPriority = 0
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);         // 4. VI toggle switch
     /* USER CODE END TIM2_MspInit 1 */
   }
   else if (htim_base->Instance == TIM3)
@@ -308,8 +319,8 @@ void HAL_UART_MspInit(UART_HandleTypeDef *huart)
     __HAL_LINKDMA(huart, hdmatx, hdma_usart1_tx);
 
     /* USART1 interrupt Init */
-    HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(USART1_IRQn);
+    HAL_NVIC_SetPriority(USART1_IRQn, 3, 0); // PreemptPriority = 3, SubPriority = 0
+    HAL_NVIC_EnableIRQ(USART1_IRQn);         // 4. UART
     /* USER CODE BEGIN USART1_MspInit 1 */
 
     /* USER CODE END USART1_MspInit 1 */

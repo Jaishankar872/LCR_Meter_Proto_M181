@@ -28,8 +28,17 @@ TIM_HandleTypeDef htim2, htim3;
 #define HIGH 1
 #define LOW 0
 
+#define BOTH_ADC_1_2_ENABLE // Both ADC1 and ADC2 Enable
+// Clean the Code Before Build the code
+
 // Private Variable Declaration
+#ifdef BOTH_ADC_1_2_ENABLE
+uint16_t raw_adc_DMA_data[DMA_ADC_data_length];
+uint16_t raw_adc2_data[DMA_ADC_data_length];
+uint16_t adc2_buffer_counter = 0;
+#else
 uint16_t raw_adc_DMA_data[DMA_ADC_data_length * 2];
+#endif
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
 uint8_t measure_volt_flag = 0, measure_current_flag = 0;
@@ -46,6 +55,7 @@ void Timer3_Init_ADC();
 void DMA_Init_ADC();
 void separate_ADC_CH_from_DMA();
 void Start_ADC_Conversion();
+void Stop_ADC_Conversion();
 
 void GPIO_Init_VI_GS_Pin();
 void Timer2_Init_VI_switch(void);
@@ -118,17 +128,36 @@ void ADC_Init_PA0_PA1()
     ADC_ChannelConfTypeDef sConfig = {0};
 
     hadc1.Instance = ADC1;
+#ifdef BOTH_ADC_1_2_ENABLE
+    hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE; // Only One Channel is used
+#else
     hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+#endif
     hadc1.Init.ContinuousConvMode = DISABLE;
     hadc1.Init.DiscontinuousConvMode = DISABLE;
     hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
+
     hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+#ifdef BOTH_ADC_1_2_ENABLE
+    hadc1.Init.NbrOfConversion = 1; // For only one Channel
+#else
     hadc1.Init.NbrOfConversion = 2; // For Two Channel
+#endif
     if (HAL_ADC_Init(&hadc1) != HAL_OK)
     {
         Error_Handler();
     }
-
+#ifdef BOTH_ADC_1_2_ENABLE
+    hadc2.Instance = ADC2;
+    /* Same configuration as ADC master, with continuous mode and external      */
+    /* trigger disabled since ADC master is triggering the ADC slave            */
+    /* conversions                                                              */
+    hadc2.Init = hadc1.Init;
+    if (HAL_ADC_Init(&hadc2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+#endif
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
@@ -142,13 +171,25 @@ void ADC_Init_PA0_PA1()
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_1; // PA1 Pin
+#ifdef BOTH_ADC_1_2_ENABLE
+    sConfig.Rank = ADC_REGULAR_RANK_1;
+#else
     sConfig.Rank = ADC_REGULAR_RANK_2;
+#endif
     sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
+
+#ifdef BOTH_ADC_1_2_ENABLE
+    if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+#else
     if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
     {
         Error_Handler();
     }
 
+#endif
     // Rest of the Config remains mentioned as
     // void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 
@@ -160,6 +201,18 @@ void ADC_Init_PA0_PA1()
 
     // Rest of the Config remains mentioned as
     // void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc) placed at stm32f1xx_hal_msp.c file
+
+    /* Run the ADC calibration */
+    if (HAL_ADCEx_Calibration_Start(&hadc1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+#ifdef BOTH_ADC_1_2_ENABLE
+    if (HAL_ADCEx_Calibration_Start(&hadc2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+#endif
 }
 
 void DMA_Init_ADC()
@@ -170,8 +223,12 @@ void DMA_Init_ADC()
 
     /* DMA interrupt init */
     /* DMA1_Channel1_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0); // ADC Data
-    HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0); // 1. PreemptPriority = 0, SubPriority = 0
+    HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);         // 1. ADC Data
+
+    /* DMA1_Channel4_IRQn interrupt configuration */
+    // HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0); // PreemptPriority = 5, SubPriority = 0
+    // HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn); // 6. UART DMA
 }
 
 void set_ADC_Measure_window(uint16_t _measure_frequency)
@@ -203,8 +260,8 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
     }
 
     // After the Windows Reset the following flag
-    adc_read_complete_flag_DMA = 0; // Re-Capture the Reading
-    _VI_measure_mode = 1;           // Reset VI Switch Position
+    adc_read_complete_flag_DMA = 0;     // Re-Capture the Reading
+    _VI_measure_mode = 1;               // Reset VI Switch Position
     set_measure_mode(_VI_measure_mode); // GPIO State
 }
 
@@ -219,9 +276,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
     if (hadc->Instance == ADC1)
     {
-        HAL_ADC_Stop_DMA(&hadc1);
+        Stop_ADC_Conversion();
         separate_ADC_CH_from_DMA();
+        adc2_buffer_counter = 0;
     }
+#ifdef BOTH_ADC_1_2_ENABLE
+    if (hadc->Instance == ADC2)
+    {
+        raw_adc2_data[adc2_buffer_counter] = HAL_ADC_GetValue(hadc);
+        adc2_buffer_counter++;
+        if (adc2_buffer_counter >= DMA_ADC_data_length)
+            adc2_buffer_counter = 0;
+    }
+#endif
 
     // Now will take over by DMA
 }
@@ -237,8 +304,13 @@ void separate_ADC_CH_from_DMA()
         min_adc_Volt_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
+#ifdef BOTH_ADC_1_2_ENABLE
+            adc_Volt_data[i] = raw_adc_DMA_data[i];  // PA0
+            AFC_adc_Volt_data[i] = raw_adc2_data[i]; // PA1
+#else
             adc_Volt_data[i] = raw_adc_DMA_data[i * 2];
             AFC_adc_Volt_data[i] = raw_adc_DMA_data[i * 2 + 1];
+#endif
 
             // Maximum & Minimum calculation
             if (adc_Volt_data[i] > max_adc_Volt)
@@ -262,8 +334,13 @@ void separate_ADC_CH_from_DMA()
         min_adc_Current_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
+#ifdef BOTH_ADC_1_2_ENABLE
+            adc_Current_data[i] = raw_adc_DMA_data[i];  // PA0
+            AFC_adc_Current_data[i] = raw_adc2_data[i]; // PA1
+#else
             adc_Current_data[i] = raw_adc_DMA_data[i * 2];
             AFC_adc_Current_data[i] = raw_adc_DMA_data[i * 2 + 1];
+#endif
 
             // Maximum & Minimum calculation
             if (adc_Current_data[i] > max_adc_Current)
@@ -294,7 +371,26 @@ uint8_t ADC_Data_Ready()
 void Start_ADC_Conversion()
 {
     // Restart the ADC
+#ifdef BOTH_ADC_1_2_ENABLE
+    // Enable ADC slave
+    HAL_ADC_Start_IT(&hadc2);
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+#else
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length * 2);
+
+#endif
+}
+
+void Stop_ADC_Conversion()
+{
+#ifdef BOTH_ADC_1_2_ENABLE
+    // Enable ADC slave
+    HAL_ADC_Stop_IT(&hadc2);
+    HAL_ADC_Stop_DMA(&hadc1);
+#else
+    // Stop the ADC
+    HAL_ADC_Stop_DMA(&hadc1);
+#endif
 }
 
 float adc_volt_convert(int16_t raw_adc)
