@@ -152,18 +152,16 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
     if (get_buttons_status(1)) // Button 1 HOLD
     {
         // _control the frequency
-        uint16_t _frequency_array[4] = {100, 500, 800, 1000};
+        uint16_t _frequency_array[3] = {100, 500, 1000};
 
         if (_frequency_array[0] == _control->set_freq)
             _control->set_freq = _frequency_array[1];
         else if (_frequency_array[1] == _control->set_freq)
             _control->set_freq = _frequency_array[2];
         else if (_frequency_array[2] == _control->set_freq)
-            _control->set_freq = _frequency_array[3];
-        else if (_frequency_array[3] == _control->set_freq)
             _control->set_freq = _frequency_array[0];
         else
-            _control->set_freq = _frequency_array[3];
+            _control->set_freq = _frequency_array[2];
 
         _change_happen = 1;
         _btn1_time = HAL_GetTick();
