@@ -5,7 +5,7 @@
 #include <stdint.h> // For uint8_t, uint16_t, etc.
 
 // Firmware Version Global Variable
-#define fw_version 0.13
+#define fw_version 0.14
 
 // Define the struct
 typedef struct system_data
@@ -21,7 +21,7 @@ typedef struct system_data
 
 // Declare the global variable
 extern system_data process_data;
-#define DMA_ADC_data_length 50
+#define DMA_ADC_data_length 64 //n=6; Selected Length is 2^n
 int16_t adc_Current_data[DMA_ADC_data_length];
 int16_t adc_Volt_data[DMA_ADC_data_length];
 int16_t AFC_adc_Current_data[DMA_ADC_data_length];

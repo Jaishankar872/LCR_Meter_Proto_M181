@@ -236,22 +236,22 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
     float window_time_us = 0;
     uint32_t timer3_period = 0; // 32 bit is needed -to handle number Big number on Calculation
     uint8_t timer3_prescaler = 8;
-    uint8_t adc_sample_rate = 40;
+    uint8_t adc_sample_rate = 32;
 
-    float APB1_Timer_clock_set_Time_nS = 13.889; // 10^9/APB1_Timer_clock_set = 13.889nS;
+    float APB1_Timer_clock_set_Time_nS = 15.625; // 10^3/64MHz = 15.625nS;(Not 72MHz)
     float After_timer3_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * timer3_prescaler;
 
     if (_measure_frequency > 0)
     {
         window_time_us = 1000000 / _measure_frequency; // Microseconds
         window_time_us /= adc_sample_rate;
-        window_time_us *= 1.2; // 20% as Extra Buffer
 
         timer3_period = window_time_us * 1000;           // Convert into uS into nS
         timer3_period /= After_timer3_prescaler_time_nS; // Timer frequency
+        timer3_period -= 1; // Counter starts with 0
 
         htim3.Init.Prescaler = timer3_prescaler;
-        htim3.Init.Period = timer3_period; // 1 KHz
+        htim3.Init.Period = timer3_period;
         // Rest of Config remains same as MX_TIM3_Init() function
         if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
         {
@@ -283,6 +283,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 #ifdef BOTH_ADC_1_2_ENABLE
     if (hadc->Instance == ADC2)
     {
+        // Only for Test Purpose - ADC Sample Rate via DSO
+        // GPIOA->ODR ^= GPIO_PIN_5; // Toggle PA5 - LED Pin
+        //--------------
         raw_adc2_data[adc2_buffer_counter] = HAL_ADC_GetValue(hadc);
         adc2_buffer_counter++;
         if (adc2_buffer_counter >= DMA_ADC_data_length)
