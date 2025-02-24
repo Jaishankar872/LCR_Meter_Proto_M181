@@ -28,11 +28,11 @@ TIM_HandleTypeDef htim2, htim3;
 #define HIGH 1
 #define LOW 0
 
-#define BOTH_ADC_1_2_ENABLE // Both ADC1 and ADC2 Enable
+#define DUAL_ADC_SIM_OFF // Dual Mode for ADC1 and ADC2 is Disabled
 // Clean the Code Before Build the code
 
 // Private Variable Declaration
-#ifdef BOTH_ADC_1_2_ENABLE
+#ifdef DUAL_ADC_SIM_OFF
 uint16_t raw_adc_DMA_data[DMA_ADC_data_length];
 uint16_t raw_adc2_data[DMA_ADC_data_length];
 uint16_t adc2_buffer_counter = 0;
@@ -128,36 +128,17 @@ void ADC_Init_PA0_PA1()
     ADC_ChannelConfTypeDef sConfig = {0};
 
     hadc1.Instance = ADC1;
-#ifdef BOTH_ADC_1_2_ENABLE
     hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE; // Only One Channel is used
-#else
-    hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
-#endif
     hadc1.Init.ContinuousConvMode = DISABLE;
     hadc1.Init.DiscontinuousConvMode = DISABLE;
     hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
-
     hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-#ifdef BOTH_ADC_1_2_ENABLE
     hadc1.Init.NbrOfConversion = 1; // For only one Channel
-#else
-    hadc1.Init.NbrOfConversion = 2; // For Two Channel
-#endif
     if (HAL_ADC_Init(&hadc1) != HAL_OK)
     {
         Error_Handler();
     }
-#ifdef BOTH_ADC_1_2_ENABLE
-    hadc2.Instance = ADC2;
-    /* Same configuration as ADC master, with continuous mode and external      */
-    /* trigger disabled since ADC master is triggering the ADC slave            */
-    /* conversions                                                              */
-    hadc2.Init = hadc1.Init;
-    if (HAL_ADC_Init(&hadc2) != HAL_OK)
-    {
-        Error_Handler();
-    }
-#endif
+
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
@@ -167,29 +148,31 @@ void ADC_Init_PA0_PA1()
     {
         Error_Handler();
     }
+    
+    //---------------------------ADC1 Config Completed----------------------------------//
+
+    hadc2.Instance = ADC2;
+    /* Same configuration as ADC master, with continuous mode and external      */
+    /* trigger disabled since ADC master is triggering the ADC slave            */
+    /* conversions                                                              */
+    hadc2.Init = hadc1.Init;
+    if (HAL_ADC_Init(&hadc2) != HAL_OK)
+    {
+        Error_Handler();
+    }
 
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_1; // PA1 Pin
-#ifdef BOTH_ADC_1_2_ENABLE
     sConfig.Rank = ADC_REGULAR_RANK_1;
-#else
-    sConfig.Rank = ADC_REGULAR_RANK_2;
-#endif
     sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
 
-#ifdef BOTH_ADC_1_2_ENABLE
     if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
     {
         Error_Handler();
     }
-#else
-    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-    {
-        Error_Handler();
-    }
 
-#endif
+    //---------------------------ADC2 Config Completed----------------------------------//
     // Rest of the Config remains mentioned as
     // void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 
@@ -207,12 +190,12 @@ void ADC_Init_PA0_PA1()
     {
         Error_Handler();
     }
-#ifdef BOTH_ADC_1_2_ENABLE
+
     if (HAL_ADCEx_Calibration_Start(&hadc2) != HAL_OK)
     {
         Error_Handler();
     }
-#endif
+
 }
 
 void DMA_Init_ADC()
@@ -280,7 +263,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
         separate_ADC_CH_from_DMA();
         adc2_buffer_counter = 0;
     }
-#ifdef BOTH_ADC_1_2_ENABLE
+#ifdef DUAL_ADC_SIM_OFF
     if (hadc->Instance == ADC2)
     {
         // Only for Test Purpose - ADC Sample Rate via DSO
@@ -307,13 +290,8 @@ void separate_ADC_CH_from_DMA()
         min_adc_Volt_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
-#ifdef BOTH_ADC_1_2_ENABLE
             adc_Volt_data[i] = raw_adc_DMA_data[i];  // PA0
             AFC_adc_Volt_data[i] = raw_adc2_data[i]; // PA1
-#else
-            adc_Volt_data[i] = raw_adc_DMA_data[i * 2];
-            AFC_adc_Volt_data[i] = raw_adc_DMA_data[i * 2 + 1];
-#endif
 
             // Maximum & Minimum calculation
             if (adc_Volt_data[i] > max_adc_Volt)
@@ -337,13 +315,8 @@ void separate_ADC_CH_from_DMA()
         min_adc_Current_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
-#ifdef BOTH_ADC_1_2_ENABLE
             adc_Current_data[i] = raw_adc_DMA_data[i];  // PA0
             AFC_adc_Current_data[i] = raw_adc2_data[i]; // PA1
-#else
-            adc_Current_data[i] = raw_adc_DMA_data[i * 2];
-            AFC_adc_Current_data[i] = raw_adc_DMA_data[i * 2 + 1];
-#endif
 
             // Maximum & Minimum calculation
             if (adc_Current_data[i] > max_adc_Current)
@@ -374,7 +347,7 @@ uint8_t ADC_Data_Ready()
 void Start_ADC_Conversion()
 {
     // Restart the ADC
-#ifdef BOTH_ADC_1_2_ENABLE
+#ifdef DUAL_ADC_SIM_OFF
     // Enable ADC slave
     HAL_ADC_Start_IT(&hadc2);
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
@@ -386,7 +359,7 @@ void Start_ADC_Conversion()
 
 void Stop_ADC_Conversion()
 {
-#ifdef BOTH_ADC_1_2_ENABLE
+#ifdef DUAL_ADC_SIM_OFF
     // Enable ADC slave
     HAL_ADC_Stop_IT(&hadc2);
     HAL_ADC_Stop_DMA(&hadc1);
