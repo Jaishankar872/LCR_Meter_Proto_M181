@@ -42,7 +42,7 @@ uint16_t raw_adc2_data[DMA_ADC_data_length];
 uint16_t adc2_buffer_counter = 0;
 #endif
 #ifdef DUAL_ADC_SIM_ON
-uint32_t raw_adc_DMA_data[DMA_ADC_data_length * 2];
+uint32_t raw_adc_DMA_data[DMA_ADC_data_length];
 #endif
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
@@ -386,7 +386,7 @@ void Start_ADC_Conversion()
 #endif
 #ifdef DUAL_ADC_SIM_ON
     HAL_ADC_Start(&hadc2); // Start ADC2 First
-    HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length * 2);
+    HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
 #endif
 }
 
