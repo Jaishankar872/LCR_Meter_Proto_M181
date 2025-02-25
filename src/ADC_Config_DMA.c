@@ -28,7 +28,11 @@ TIM_HandleTypeDef htim2, htim3;
 #define HIGH 1
 #define LOW 0
 
-#define DUAL_ADC_SIM_OFF // Dual Mode for ADC1 and ADC2 is Disabled
+// Dual Mode for ADC1 and ADC2 is Disabled
+// #define DUAL_ADC_SIM_OFF
+#define DUAL_ADC_SIM_ON // Also update same in stm32f1xx_hal_msp.c File
+// Dual ADC Reference: https://github.com/STMicroelectronics/STM32CubeF1/blob/master/Projects/STM3210C_EVAL/Examples/ADC/ADC_DualModeInterleaved/Src/main.c
+// Uncomment any one not both
 // Clean the Code Before Build the code
 
 // Private Variable Declaration
@@ -36,8 +40,9 @@ TIM_HandleTypeDef htim2, htim3;
 uint16_t raw_adc_DMA_data[DMA_ADC_data_length];
 uint16_t raw_adc2_data[DMA_ADC_data_length];
 uint16_t adc2_buffer_counter = 0;
-#else
-uint16_t raw_adc_DMA_data[DMA_ADC_data_length * 2];
+#endif
+#ifdef DUAL_ADC_SIM_ON
+uint32_t raw_adc_DMA_data[DMA_ADC_data_length * 2];
 #endif
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
@@ -139,6 +144,16 @@ void ADC_Init_PA0_PA1()
         Error_Handler();
     }
 
+#ifdef DUAL_ADC_SIM_ON
+    //  Configure the ADC multi-mode
+    ADC_MultiModeTypeDef multimode = {0};
+    multimode.Mode = ADC_DUALMODE_REGSIMULT;
+    if (HAL_ADCEx_MultiModeConfigChannel(&hadc1, &multimode) != HAL_OK)
+    {
+        Error_Handler();
+    }
+#endif
+
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
@@ -148,7 +163,7 @@ void ADC_Init_PA0_PA1()
     {
         Error_Handler();
     }
-    
+
     //---------------------------ADC1 Config Completed----------------------------------//
 
     hadc2.Instance = ADC2;
@@ -156,6 +171,10 @@ void ADC_Init_PA0_PA1()
     /* trigger disabled since ADC master is triggering the ADC slave            */
     /* conversions                                                              */
     hadc2.Init = hadc1.Init;
+#ifdef DUAL_ADC_SIM_ON
+    hadc2.Init.ContinuousConvMode = ENABLE; // **Very Important (Not Mentioned in any Document)
+    hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+#endif
     if (HAL_ADC_Init(&hadc2) != HAL_OK)
     {
         Error_Handler();
@@ -195,7 +214,6 @@ void ADC_Init_PA0_PA1()
     {
         Error_Handler();
     }
-
 }
 
 void DMA_Init_ADC()
@@ -231,7 +249,7 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
 
         timer3_period = window_time_us * 1000;           // Convert into uS into nS
         timer3_period /= After_timer3_prescaler_time_nS; // Timer frequency
-        timer3_period -= 1; // Counter starts with 0
+        timer3_period -= 1;                              // Counter starts with 0
 
         htim3.Init.Prescaler = timer3_prescaler;
         htim3.Init.Period = timer3_period;
@@ -261,7 +279,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
     {
         Stop_ADC_Conversion();
         separate_ADC_CH_from_DMA();
+#ifdef DUAL_ADC_SIM_OFF
         adc2_buffer_counter = 0;
+#endif
     }
 #ifdef DUAL_ADC_SIM_OFF
     if (hadc->Instance == ADC2)
@@ -290,8 +310,14 @@ void separate_ADC_CH_from_DMA()
         min_adc_Volt_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
+#ifdef DUAL_ADC_SIM_ON
+            adc_Volt_data[i] = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF);  // Extract PA0 data
+            AFC_adc_Volt_data[i] = (uint16_t)(raw_adc_DMA_data[i] >> 16); // Extract PA1 data
+#endif
+#ifdef DUAL_ADC_SIM_OFF
             adc_Volt_data[i] = raw_adc_DMA_data[i];  // PA0
             AFC_adc_Volt_data[i] = raw_adc2_data[i]; // PA1
+#endif
 
             // Maximum & Minimum calculation
             if (adc_Volt_data[i] > max_adc_Volt)
@@ -315,8 +341,14 @@ void separate_ADC_CH_from_DMA()
         min_adc_Current_AFC = 4096;
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
+#ifdef DUAL_ADC_SIM_ON
+            adc_Current_data[i] = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF);  // Extract PA0 data
+            AFC_adc_Current_data[i] = (uint16_t)(raw_adc_DMA_data[i] >> 16); // Extract PA1 data
+#endif
+#ifdef DUAL_ADC_SIM_OFF
             adc_Current_data[i] = raw_adc_DMA_data[i];  // PA0
             AFC_adc_Current_data[i] = raw_adc2_data[i]; // PA1
+#endif
 
             // Maximum & Minimum calculation
             if (adc_Current_data[i] > max_adc_Current)
@@ -351,9 +383,10 @@ void Start_ADC_Conversion()
     // Enable ADC slave
     HAL_ADC_Start_IT(&hadc2);
     HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
-#else
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length * 2);
-
+#endif
+#ifdef DUAL_ADC_SIM_ON
+    HAL_ADC_Start(&hadc2); // Start ADC2 First
+    HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length * 2);
 #endif
 }
 
@@ -365,7 +398,8 @@ void Stop_ADC_Conversion()
     HAL_ADC_Stop_DMA(&hadc1);
 #else
     // Stop the ADC
-    HAL_ADC_Stop_DMA(&hadc1);
+    HAL_ADC_Stop(&hadc2); // Start ADC2 First
+    HAL_ADCEx_MultiModeStop_DMA(&hadc1);
 #endif
 }
 
