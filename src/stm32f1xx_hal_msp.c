@@ -29,7 +29,7 @@ extern DMA_HandleTypeDef hdma_usart1_tx;
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
-#define DUAL_ADC_SIM_ON
+
 /* USER CODE END TD */
 
 /* Private define ------------------------------------------------------------*/
@@ -116,13 +116,8 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
     hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
     hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
     hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
-    #ifdef DUAL_ADC_SIM_ON
-    hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
+    hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD; // For Dual ADC Mode
     hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
-    #else
-    hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
-    hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
-    #endif
     hdma_adc1.Init.Mode = DMA_CIRCULAR;
     hdma_adc1.Init.Priority = DMA_PRIORITY_HIGH;
     if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
