@@ -158,7 +158,7 @@ void ADC_Init_PA0_PA1()
      */
     sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_13CYCLES_5;
     if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
     {
         Error_Handler();
@@ -183,8 +183,8 @@ void ADC_Init_PA0_PA1()
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_1; // PA1 Pin
-    sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
+    // sConfig.Rank = ADC_REGULAR_RANK_1;
+    // sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
 
     if (HAL_ADC_ConfigChannel(&hadc2, &sConfig) != HAL_OK)
     {

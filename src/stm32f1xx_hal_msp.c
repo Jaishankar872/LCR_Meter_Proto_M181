@@ -142,8 +142,8 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
   if (hadc->Instance == ADC2)
   {
     __HAL_RCC_ADC2_CLK_ENABLE();
-    HAL_NVIC_SetPriority(ADC1_2_IRQn, 1, 0); // PreemptPriority = 1, SubPriority = 0
-    HAL_NVIC_EnableIRQ(ADC1_2_IRQn);         // 2. ADC
+    // HAL_NVIC_SetPriority(ADC1_2_IRQn, 1, 0); // PreemptPriority = 1, SubPriority = 0
+    // HAL_NVIC_EnableIRQ(ADC1_2_IRQn);         // 2. ADC
   }
 }
 
