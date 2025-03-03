@@ -143,11 +143,24 @@ void ADC_Init_PA0_PA1()
         Error_Handler();
     }
 
+    /** Configure Analog WatchDog 1
+     */
+    ADC_AnalogWDGConfTypeDef AnalogWDGConfig = {0};
+    AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REG;
+    AnalogWDGConfig.HighThreshold = 2500;
+    AnalogWDGConfig.LowThreshold = 2250;
+    AnalogWDGConfig.Channel = ADC_CHANNEL_0;
+    AnalogWDGConfig.ITMode = ENABLE;
+    if (HAL_ADC_AnalogWDGConfig(&hadc1, &AnalogWDGConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
     /** Configure Regular Channel
      */
     sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_13CYCLES_5;
+    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
     if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
     {
         Error_Handler();
@@ -164,6 +177,17 @@ void ADC_Init_PA0_PA1()
     hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
 
     if (HAL_ADC_Init(&hadc2) != HAL_OK)
+    {
+        Error_Handler();
+    }
+    /** Configure Analog WatchDog 1
+     */
+    AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REGINJEC;
+    AnalogWDGConfig.HighThreshold = 2000;
+    AnalogWDGConfig.LowThreshold = 1828;
+    AnalogWDGConfig.Channel = ADC_CHANNEL_1;
+    AnalogWDGConfig.ITMode = ENABLE;
+    if (HAL_ADC_AnalogWDGConfig(&hadc2, &AnalogWDGConfig) != HAL_OK)
     {
         Error_Handler();
     }
@@ -224,11 +248,11 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
 {
     float window_time_us = 0;
     uint32_t timer3_period = 0; // 32 bit is needed -to handle number Big number on Calculation
-    uint8_t timer3_prescaler = 8;
+    uint8_t timer3_prescaler = 4;
     uint8_t adc_sample_rate = 32;
 
-    float APB1_Timer_clock_set_Time_nS = 15.625; // 10^3/64MHz = 15.625nS;(Not 72MHz)
-    float After_timer3_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * timer3_prescaler;
+    float APB1_Timer_clock_set_Time_nS = 13.889;                                                  // 10^3/72MHz = 13.889nS; APB1 Timer Clock = 72MHz
+    float After_timer3_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * (timer3_prescaler + 1); // This is correct formula
 
     if (_measure_frequency > 0)
     {
@@ -237,7 +261,8 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
 
         timer3_period = window_time_us * 1000;           // Convert into uS into nS
         timer3_period /= After_timer3_prescaler_time_nS; // Timer frequency
-        timer3_period -= 1;                              // Counter starts with 0
+        // timer3_period -= 1;                              // Counter starts with 0
+        // timer3_period += 1;                              //To Compensate Calculation Error
 
         htim3.Init.Prescaler = timer3_prescaler;
         htim3.Init.Period = timer3_period;
@@ -271,6 +296,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 
     // Now will take over by DMA
+}
+
+void HAL_ADC_LevelOutOfWindowCallback(ADC_HandleTypeDef *hadc)
+{
+    // Only Rough Implementation - To be Replaced with Timer 4
+    // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
+    if (hadc->Instance == ADC1)
+        GPIOA->BRR = GPIO_PIN_5; // Set PA5 LOW
+
+    if (hadc->Instance == ADC2)
+        GPIOA->BSRR = GPIO_PIN_5; // Set PA5 High
 }
 
 void separate_ADC_CH_from_DMA()
