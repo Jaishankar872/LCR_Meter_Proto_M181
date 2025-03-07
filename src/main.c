@@ -100,21 +100,22 @@ void system_loop()
   process_data.adc_measure_status = ADC_Data_Ready();
   if (process_data.adc_measure_status == 4)
   {
-    // First Read -> Display value
-    get_adc_reading(&process_data);
-    // Update the display
-    screen1_home_print(process_data);
-
+    // First Read -> Print
     if (process_data.uart_all_print_DSO)
     {
-      const int _print_delay = 10; // Milli Seconds
+      const int _print_delay = 20; // Milli Seconds
       // printf("Via DMA interrupt Callback function\n");
       for (int i = 0; i < DMA_ADC_data_length; i++)
       {
-        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i],adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
+        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i], adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
         HAL_Delay(_print_delay);
       }
       // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
+      // ->Display value
+      get_adc_reading(&process_data);
+      // Update the display
+      screen1_home_print(process_data);
+      HAL_Delay(800); // Pause for a moment
     }
   }
   else
