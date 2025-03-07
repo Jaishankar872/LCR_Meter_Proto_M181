@@ -91,7 +91,7 @@ void screen1_home_print(system_data _display)
         ssd1306_UpdateScreen();
     }
 
-    if (_display.adc_measure_status == 3)
+    if (_display.adc_measure_status == 4)
     {
         // Write Frequency value
         ssd1306_SetCursor(_value_position_x, _line1_position_y);

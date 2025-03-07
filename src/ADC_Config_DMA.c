@@ -28,7 +28,6 @@ TIM_HandleTypeDef htim2, htim3;
 #define HIGH 1
 #define LOW 0
 
-
 // Dual ADC Reference: https://github.com/STMicroelectronics/STM32CubeF1/blob/master/Projects/STM3210C_EVAL/Examples/ADC/ADC_DualModeInterleaved/Src/main.c
 // Uncomment any one not both
 // Clean the Code Before Build the code
@@ -37,9 +36,9 @@ TIM_HandleTypeDef htim2, htim3;
 uint32_t raw_adc_DMA_data[DMA_ADC_data_length];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
-uint8_t measure_volt_flag = 0, measure_current_flag = 0;
+uint8_t measure_mode_flag = 0;
 uint8_t GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
-volatile uint8_t _VI_measure_mode = 1, auto_switch_VI_measure_mode = 1;
+volatile uint8_t _VI_measure_mode = 1;
 
 int16_t max_adc_Volt = 0, min_adc_Volt = 4096;
 int16_t max_adc_Volt_AFC = 0, min_adc_Volt_AFC = 4096;
@@ -52,6 +51,7 @@ void DMA_Init_ADC();
 void separate_ADC_CH_from_DMA();
 void Start_ADC_Conversion();
 void Stop_ADC_Conversion();
+void separate_adc_max_value();
 
 void GPIO_Init_VI_GS_Pin();
 void Timer2_Init_VI_switch(void);
@@ -142,7 +142,6 @@ void ADC_Init_PA0_PA1()
     {
         Error_Handler();
     }
-
 
     /** Configure Regular Channel
      */
@@ -271,73 +270,46 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
         separate_ADC_CH_from_DMA();
     }
 
-
     // Now will take over by DMA
 }
 
 void separate_ADC_CH_from_DMA()
 {
-    if (measure_volt_flag && !measure_current_flag)
-    {
-        // Reset the value before get into the loop
-        max_adc_Volt = 0;
-        min_adc_Volt = 4096;
-        max_adc_Volt_AFC = 0;
-        min_adc_Volt_AFC = 4096;
-        for (int i = 0; i < DMA_ADC_data_length; i++)
-        {
-            adc_Volt_data[i] = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF);  // Extract PA0 data
-            AFC_adc_Volt_data[i] = (uint16_t)(raw_adc_DMA_data[i] >> 16); // Extract PA1 data
+    int16_t PA0_data_temp = 0, PA1_data_temp = 0;
 
-            // Maximum & Minimum calculation
-            if (adc_Volt_data[i] > max_adc_Volt)
-                max_adc_Volt = adc_Volt_data[i];
-            if (adc_Volt_data[i] < min_adc_Volt)
-                min_adc_Volt = adc_Volt_data[i];
-            // Maximum & Minimum calculation - AFC
-            if (AFC_adc_Volt_data[i] > max_adc_Volt_AFC)
-                max_adc_Volt_AFC = AFC_adc_Volt_data[i];
-            if (AFC_adc_Volt_data[i] < min_adc_Volt_AFC)
-                min_adc_Volt_AFC = AFC_adc_Volt_data[i];
-        }
-        adc_read_complete_flag_DMA = 3; // Voltage data Ready & Current data start Capturing
-    }
-    else if (!measure_volt_flag && measure_current_flag)
+    for (int i = 0; i < DMA_ADC_data_length; i++)
     {
-        // Reset the value before get into the loop
-        max_adc_Current = 0;
-        min_adc_Current = 4096;
-        max_adc_Current_AFC = 0;
-        min_adc_Current_AFC = 4096;
-        for (int i = 0; i < DMA_ADC_data_length; i++)
-        {
-            adc_Current_data[i] = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF);  // Extract PA0 data
-            AFC_adc_Current_data[i] = (uint16_t)(raw_adc_DMA_data[i] >> 16); // Extract PA1 data
+        PA0_data_temp = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
+        PA1_data_temp = (uint16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
 
-            // Maximum & Minimum calculation
-            if (adc_Current_data[i] > max_adc_Current)
-                max_adc_Current = adc_Current_data[i];
-            if (adc_Current_data[i] < min_adc_Current)
-                min_adc_Current = adc_Current_data[i];
-            // Maximum & Minimum calculation -AFC
-            if (AFC_adc_Current_data[i] > max_adc_Current_AFC)
-                max_adc_Current_AFC = AFC_adc_Current_data[i];
-            if (AFC_adc_Current_data[i] < min_adc_Current_AFC)
-                min_adc_Current_AFC = AFC_adc_Current_data[i];
+        if (measure_mode_flag == 1)
+        {
+            adc_Volt_data[i] = PA0_data_temp;
+            AFC_adc_Volt_data[i] = PA1_data_temp;
         }
-        adc_read_complete_flag_DMA = 4; // Both are voltage and current data Ready
+        else if (measure_mode_flag == 2)
+        {
+            adc_Current_data[i] = PA0_data_temp;
+            AFC_adc_Current_data[i] = PA1_data_temp;
+        }
+        else if (measure_mode_flag == 3)
+        {
+            adc_Volt_data_ZC[i] = PA0_data_temp;
+            AFC_adc_Volt_data_ZC[i] = PA1_data_temp;
+        }
+        else if (measure_mode_flag == 4)
+        {
+            adc_Current_data_ZC[i] = PA0_data_temp;
+            AFC_adc_Current_data_ZC[i] = PA1_data_temp;
+        }
     }
+    // Transfer the Status After Completing
+    adc_read_complete_flag_DMA = measure_mode_flag;
 }
 
 uint8_t ADC_Data_Ready()
 {
-    if (adc_read_complete_flag_DMA == 3)
-    {
-        adc_read_complete_flag_DMA = 0;
-        return 3;
-    }
-    else
-        return adc_read_complete_flag_DMA;
+    return adc_read_complete_flag_DMA;
 }
 
 void Start_ADC_Conversion()
@@ -366,15 +338,64 @@ float adc_volt_convert(int16_t raw_adc)
 
 void get_adc_reading(system_data *_adc_data) // Pointer used to edit in struct value
 {
-    int16_t _pk_pk;
-    _pk_pk = max_adc_Volt - min_adc_Volt;
-    _adc_data->pk_pk_voltage = adc_volt_convert(_pk_pk);
-    _pk_pk = max_adc_Volt_AFC - min_adc_Volt_AFC;
-    _adc_data->pk_pk_AFC_volt = adc_volt_convert(_pk_pk);
-    _pk_pk = max_adc_Current - min_adc_Current;
-    _adc_data->pk_pk_current = adc_volt_convert(_pk_pk);
-    _pk_pk = max_adc_Current_AFC - min_adc_Current_AFC;
-    _adc_data->pk_pk_AFC_current = adc_volt_convert(_pk_pk);
+    if (adc_read_complete_flag_DMA == 4)
+    {
+        separate_adc_max_value();
+        int16_t _pk_pk;
+        _pk_pk = max_adc_Volt - min_adc_Volt;
+        _adc_data->pk_pk_voltage = adc_volt_convert(_pk_pk);
+        _pk_pk = max_adc_Volt_AFC - min_adc_Volt_AFC;
+        _adc_data->pk_pk_AFC_volt = adc_volt_convert(_pk_pk);
+        _pk_pk = max_adc_Current - min_adc_Current;
+        _adc_data->pk_pk_current = adc_volt_convert(_pk_pk);
+        _pk_pk = max_adc_Current_AFC - min_adc_Current_AFC;
+        _adc_data->pk_pk_AFC_current = adc_volt_convert(_pk_pk);
+
+        adc_read_complete_flag_DMA = 0; // Reset Flag After Copying
+    }
+}
+
+void separate_adc_max_value()
+{
+    // Reset the value before get into the loop
+    // Voltage Value Reset
+    max_adc_Volt = 0;
+    min_adc_Volt = 4096;
+    max_adc_Volt_AFC = 0;
+    min_adc_Volt_AFC = 4096;
+
+    // Current Value Reset
+    max_adc_Current = 0;
+    min_adc_Current = 4096;
+    max_adc_Current_AFC = 0;
+    min_adc_Current_AFC = 4096;
+
+    for (int i = 0; i < DMA_ADC_data_length; i++)
+    {
+        // Voltage Value Reset
+        // Maximum & Minimum calculation
+        if (adc_Volt_data[i] > max_adc_Volt)
+            max_adc_Volt = adc_Volt_data[i];
+        if (adc_Volt_data[i] < min_adc_Volt)
+            min_adc_Volt = adc_Volt_data[i];
+        // Maximum & Minimum calculation - AFC
+        if (AFC_adc_Volt_data[i] > max_adc_Volt_AFC)
+            max_adc_Volt_AFC = AFC_adc_Volt_data[i];
+        if (AFC_adc_Volt_data[i] < min_adc_Volt_AFC)
+            min_adc_Volt_AFC = AFC_adc_Volt_data[i];
+
+        // Current Value Reset
+        // Maximum & Minimum calculation
+        if (adc_Current_data[i] > max_adc_Current)
+            max_adc_Current = adc_Current_data[i];
+        if (adc_Current_data[i] < min_adc_Current)
+            min_adc_Current = adc_Current_data[i];
+        // Maximum & Minimum calculation -AFC
+        if (AFC_adc_Current_data[i] > max_adc_Current_AFC)
+            max_adc_Current_AFC = AFC_adc_Current_data[i];
+        if (AFC_adc_Current_data[i] < min_adc_Current_AFC)
+            min_adc_Current_AFC = AFC_adc_Current_data[i];
+    }
 }
 
 void GPIO_Init_VI_GS_Pin()
@@ -449,107 +470,82 @@ void set_measure_mode(int8_t _mode1)
 {
     /*
     +----------------------+
-    <1> - Discharge for Voltage Measure
-    <2> - Set Voltage Mode
-    <3> - Measure Voltage ****
-    <4> - Discharge for Current Measure
-    <5> - Set Current Mode
-    <6> - Measure Current ****
-    |---------------------------|
-    | Discharge | Set | Measure |
-    |---------------------------|
+    <1> - Set Voltage Mode
+    <2> - Measure Voltage ****
+    <3> - Set Current Mode
+    <4> - Measure Current ****
+    <5> - Set Zero Cross for Voltage
+    <6> - Measure ZC Voltage ****
+    <7> - Set Zero Cross for Current
+    <8> - Measure ZC Current ****
+    |---------------|
+    | Set | Measure |
+    |---------------|
     */
-    if (!auto_switch_VI_measure_mode)
-        _mode1 -= 1; // To set control pins
-
     switch (_mode1)
     {
     case 1:
-        // 1. Discharge for Voltage Measure
+        // 1. Set Voltage Mode
         VI_pin_state = LOW;
-        GS_pin_state = LOW;
+        GS_pin_state = HIGH;
         break;
     case 2:
-        // 2. Set Voltage Mode
-        VI_pin_state = LOW;
-        GS_pin_state = HIGH;
+        // 2. Measure Voltage
+        measure_mode_flag = 1; // Start Measurement
         break;
     case 3:
-        // 3. Measure Voltage
-        measure_volt_flag = 1; // Start Measurement
-        measure_current_flag = 0;
+        // 3. Set Current Mode
+        VI_pin_state = HIGH;
+        GS_pin_state = HIGH;
         break;
     case 4:
-        // 4. Discharge for Current Measure
+        // 4. Measure Current
+        measure_mode_flag = 2; // Start Measurement
+        break;
+    case 5:
+        // 5.Set ZC Voltage Mode
+        VI_pin_state = LOW;
+        GS_pin_state = LOW;
+        break;
+    case 6:
+        // 6. Measure ZC Voltage
+        measure_mode_flag = 3; // Start ZC (Zero Cross)
+        break;
+    case 7:
+        // 7.Set ZC Voltage Mode
         VI_pin_state = HIGH;
         GS_pin_state = LOW;
         break;
-    case 5:
-        // 5.Set Current Mode
-        VI_pin_state = HIGH;
-        GS_pin_state = HIGH;
-        break;
-    case 6:
-        // 6. Measure Current
-        measure_volt_flag = 0;
-        measure_current_flag = 1; // Start Measurement
+    case 8:
+        // 6. Measure ZC Current
+        measure_mode_flag = 4; // Start ZC (Zero Cross)
         break;
     default:
         // Add Fail safe step
         // Do Nothing -> Stop the ADC data capturing volt/current data
-        measure_volt_flag = 0;
-        measure_current_flag = 0;
+        measure_mode_flag = 0;
         break;
     }
 
-    if (_mode1 % 3 != 0)
+    if (_mode1 % 2 != 0)
     {
-        // Stop Measurement
-        measure_volt_flag = 0;
-        measure_current_flag = 0;
         // Set the Mode
         HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, VI_pin_state);
         HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, GS_pin_state);
     }
-    if (!auto_switch_VI_measure_mode)
+    else
     {
-        if (_mode1 == 2)
-        {
-            // 3. Measure Voltage
-            adc_read_complete_flag_DMA = 1; // Voltage data start Capturing
-            measure_volt_flag = 1;          // Start Measurement
-            measure_current_flag = 0;
-            Start_ADC_Conversion();
-        }
-        else if (_mode1 == 5)
-        {
-            // 6. Measure Current
-            adc_read_complete_flag_DMA = 2; // Current data start Capturing
-            measure_volt_flag = 0;
-            measure_current_flag = 1; // Start Measurement
-            Start_ADC_Conversion();
-        }
-    }
-    else if (auto_switch_VI_measure_mode)
-    {
-        if (measure_volt_flag && !measure_current_flag)
-        {
-            Start_ADC_Conversion(); // Measure Voltage
-        }
-        if (!measure_volt_flag && measure_current_flag)
-        {
-            Start_ADC_Conversion(); // Measure Current
-        }
+        Start_ADC_Conversion(); // Trigger the Measurement
     }
 }
 
 void On_Timer2_Interrupt()
 {
-    if (auto_switch_VI_measure_mode)
+    if (adc_read_complete_flag_DMA != 4)
     {
         _VI_measure_mode++;
-        if (_VI_measure_mode == 7)
+        if (_VI_measure_mode >= 9)
             _VI_measure_mode = 1;
+        set_measure_mode(_VI_measure_mode);
     }
-    set_measure_mode(_VI_measure_mode);
 }

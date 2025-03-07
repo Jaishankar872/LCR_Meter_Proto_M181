@@ -21,10 +21,15 @@ typedef struct system_data
 
 // Declare the global variable
 extern system_data process_data;
-#define DMA_ADC_data_length 64 //n=6; Selected Length is 2^n
+#define DMA_ADC_data_length 64 // n=6; Selected Length is 2^n
 int16_t adc_Current_data[DMA_ADC_data_length];
 int16_t adc_Volt_data[DMA_ADC_data_length];
 int16_t AFC_adc_Current_data[DMA_ADC_data_length];
 int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
+
+int16_t adc_Current_data_ZC[DMA_ADC_data_length];
+int16_t adc_Volt_data_ZC[DMA_ADC_data_length];
+int16_t AFC_adc_Current_data_ZC[DMA_ADC_data_length];
+int16_t AFC_adc_Volt_data_ZC[DMA_ADC_data_length];
 
 #endif // SYSTEM_DATA_H
