@@ -143,18 +143,6 @@ void ADC_Init_PA0_PA1()
         Error_Handler();
     }
 
-    /** Configure Analog WatchDog 1
-     */
-    ADC_AnalogWDGConfTypeDef AnalogWDGConfig = {0};
-    AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REG;
-    AnalogWDGConfig.HighThreshold = 2500;
-    AnalogWDGConfig.LowThreshold = 2250;
-    AnalogWDGConfig.Channel = ADC_CHANNEL_0;
-    AnalogWDGConfig.ITMode = ENABLE;
-    if (HAL_ADC_AnalogWDGConfig(&hadc1, &AnalogWDGConfig) != HAL_OK)
-    {
-        Error_Handler();
-    }
 
     /** Configure Regular Channel
      */
@@ -177,17 +165,6 @@ void ADC_Init_PA0_PA1()
     hadc2.Init.ExternalTrigConv = ADC_SOFTWARE_START;
 
     if (HAL_ADC_Init(&hadc2) != HAL_OK)
-    {
-        Error_Handler();
-    }
-    /** Configure Analog WatchDog 1
-     */
-    AnalogWDGConfig.WatchdogMode = ADC_ANALOGWATCHDOG_SINGLE_REGINJEC;
-    AnalogWDGConfig.HighThreshold = 2000;
-    AnalogWDGConfig.LowThreshold = 1828;
-    AnalogWDGConfig.Channel = ADC_CHANNEL_1;
-    AnalogWDGConfig.ITMode = ENABLE;
-    if (HAL_ADC_AnalogWDGConfig(&hadc2, &AnalogWDGConfig) != HAL_OK)
     {
         Error_Handler();
     }
@@ -296,17 +273,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
 
     // Now will take over by DMA
-}
-
-void HAL_ADC_LevelOutOfWindowCallback(ADC_HandleTypeDef *hadc)
-{
-    // Only Rough Implementation - To be Replaced with Timer 4
-    // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
-    if (hadc->Instance == ADC1)
-        GPIOA->BRR = GPIO_PIN_5; // Set PA5 LOW
-
-    if (hadc->Instance == ADC2)
-        GPIOA->BSRR = GPIO_PIN_5; // Set PA5 High
 }
 
 void separate_ADC_CH_from_DMA()
