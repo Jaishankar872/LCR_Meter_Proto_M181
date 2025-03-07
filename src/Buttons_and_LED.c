@@ -58,7 +58,7 @@ void setup_buttons_and_LED()
 }
 
 // For the below check the delcare of HAL_GPIO_EXTI_IRQHandler
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void On_EXTI15_10_Interrupt(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == BTN1_HOLD_Pin)
         _btn1_hold_flag = 1;

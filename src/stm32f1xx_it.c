@@ -54,6 +54,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
+extern void On_EXTI15_10_Interrupt(uint16_t GPIO_Pin);
 extern void On_Timer1_Interrupt();
 extern void On_Timer2_Interrupt();
 
@@ -313,6 +314,18 @@ void EXTI15_10_IRQHandler(void)
 
   /* USER CODE END EXTI15_10_IRQn 1 */
 }
+
+// For the below check the delcare of HAL_GPIO_EXTI_IRQHandler
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if (GPIO_Pin == BTN1_HOLD_Pin)
+    On_EXTI15_10_Interrupt(BTN1_HOLD_Pin); // _btn1_hold_flag = 1;
+  if (GPIO_Pin == BTN2_SP_Pin)
+    On_EXTI15_10_Interrupt(BTN2_SP_Pin); // _btn2_sp_flag = 1;
+  if (GPIO_Pin == BTN3_RCL_Pin)
+    On_EXTI15_10_Interrupt(BTN3_RCL_Pin); // _btn3_rcl_flag = 1;
+}
+
 /* USER CODE BEGIN 1 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
