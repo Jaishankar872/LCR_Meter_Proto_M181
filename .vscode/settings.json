@@ -12,6 +12,7 @@
         "adc_config_dma.h": "c",
         "stm32f1xx_hal_dma.h": "c",
         "buttons_and_led.h": "c",
-        "system_data.h": "c"
+        "system_data.h": "c",
+        "dsp_data.h": "c"
     }
 }

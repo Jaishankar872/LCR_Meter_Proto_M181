@@ -17,6 +17,7 @@
 #include "DAC_sine_wave_gen.h"
 #include "ADC_Config_DMA.h"
 #include "Buttons_and_LED.h"
+#include "DSP_data.h"
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -97,7 +98,7 @@ void system_loop()
     screen1_home_print(process_data);
   }
 
-  process_data.adc_measure_status = ADC_Data_Ready();
+  process_data.adc_measure_status = get_measure_status();
   if (process_data.adc_measure_status == 4)
   {
     // First Read -> Print
@@ -107,12 +108,14 @@ void system_loop()
       // printf("Via DMA interrupt Callback function\n");
       for (int i = 0; i < DMA_ADC_data_length; i++)
       {
-        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i], adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
+        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i],
+                                                   adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
         HAL_Delay(_print_delay);
       }
       // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
       // ->Display value
-      get_adc_reading(&process_data);
+      calculate_peak_value(&process_data);
+      ADC_recapture_data();
       // Update the display
       screen1_home_print(process_data);
       HAL_Delay(800); // Pause for a moment

@@ -40,11 +40,6 @@ uint8_t measure_mode_flag = 0;
 uint8_t GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
 volatile uint8_t _VI_measure_mode = 1;
 
-int16_t max_adc_Volt = 0, min_adc_Volt = 4096;
-int16_t max_adc_Volt_AFC = 0, min_adc_Volt_AFC = 4096;
-int16_t max_adc_Current = 0, min_adc_Current = 4096;
-int16_t max_adc_Current_AFC = 0, min_adc_Current_AFC = 4096;
-
 // Private Function Declaration
 void Timer3_Init_ADC();
 void DMA_Init_ADC();
@@ -307,7 +302,7 @@ void separate_ADC_CH_from_DMA()
     adc_read_complete_flag_DMA = measure_mode_flag;
 }
 
-uint8_t ADC_Data_Ready()
+uint8_t get_measure_status()
 {
     return adc_read_complete_flag_DMA;
 }
@@ -326,76 +321,15 @@ void Stop_ADC_Conversion()
     HAL_ADCEx_MultiModeStop_DMA(&hadc1);
 }
 
-float adc_volt_convert(int16_t raw_adc)
+uint8_t ADC_recapture_data() // Pointer used to edit in struct value
 {
-    int16_t adc_res = 4096;
-    float adc_ref = 3.3;
-    float volt_reading1 = 0;
-    volt_reading1 = (float)adc_ref * raw_adc;
-    volt_reading1 /= adc_res;
-    return volt_reading1;
-}
-
-void get_adc_reading(system_data *_adc_data) // Pointer used to edit in struct value
-{
-    if (adc_read_complete_flag_DMA == 4)
+    if (get_measure_status() == 4)
     {
-        separate_adc_max_value();
-        int16_t _pk_pk;
-        _pk_pk = max_adc_Volt - min_adc_Volt;
-        _adc_data->pk_pk_voltage = adc_volt_convert(_pk_pk);
-        _pk_pk = max_adc_Volt_AFC - min_adc_Volt_AFC;
-        _adc_data->pk_pk_AFC_volt = adc_volt_convert(_pk_pk);
-        _pk_pk = max_adc_Current - min_adc_Current;
-        _adc_data->pk_pk_current = adc_volt_convert(_pk_pk);
-        _pk_pk = max_adc_Current_AFC - min_adc_Current_AFC;
-        _adc_data->pk_pk_AFC_current = adc_volt_convert(_pk_pk);
-
         adc_read_complete_flag_DMA = 0; // Reset Flag After Copying
+        return 1;       // Recapture started
     }
-}
-
-void separate_adc_max_value()
-{
-    // Reset the value before get into the loop
-    // Voltage Value Reset
-    max_adc_Volt = 0;
-    min_adc_Volt = 4096;
-    max_adc_Volt_AFC = 0;
-    min_adc_Volt_AFC = 4096;
-
-    // Current Value Reset
-    max_adc_Current = 0;
-    min_adc_Current = 4096;
-    max_adc_Current_AFC = 0;
-    min_adc_Current_AFC = 4096;
-
-    for (int i = 0; i < DMA_ADC_data_length; i++)
-    {
-        // Voltage Value Reset
-        // Maximum & Minimum calculation
-        if (adc_Volt_data[i] > max_adc_Volt)
-            max_adc_Volt = adc_Volt_data[i];
-        if (adc_Volt_data[i] < min_adc_Volt)
-            min_adc_Volt = adc_Volt_data[i];
-        // Maximum & Minimum calculation - AFC
-        if (AFC_adc_Volt_data[i] > max_adc_Volt_AFC)
-            max_adc_Volt_AFC = AFC_adc_Volt_data[i];
-        if (AFC_adc_Volt_data[i] < min_adc_Volt_AFC)
-            min_adc_Volt_AFC = AFC_adc_Volt_data[i];
-
-        // Current Value Reset
-        // Maximum & Minimum calculation
-        if (adc_Current_data[i] > max_adc_Current)
-            max_adc_Current = adc_Current_data[i];
-        if (adc_Current_data[i] < min_adc_Current)
-            min_adc_Current = adc_Current_data[i];
-        // Maximum & Minimum calculation -AFC
-        if (AFC_adc_Current_data[i] > max_adc_Current_AFC)
-            max_adc_Current_AFC = AFC_adc_Current_data[i];
-        if (AFC_adc_Current_data[i] < min_adc_Current_AFC)
-            min_adc_Current_AFC = AFC_adc_Current_data[i];
-    }
+    else
+        return 0;  // Invaild request to Recapture
 }
 
 void GPIO_Init_VI_GS_Pin()
@@ -433,7 +367,7 @@ void Timer2_Init_VI_switch(void)
     htim2.Instance = TIM2;
     htim2.Init.Prescaler = 7200;
     htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim2.Init.Period = 6250; // 12500; // 25000;
+    htim2.Init.Period = 1250; // Every 125mSecs
     htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
     if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -517,7 +451,7 @@ void set_measure_mode(int8_t _mode1)
         GS_pin_state = LOW;
         break;
     case 8:
-        // 6. Measure ZC Current
+        // 8. Measure ZC Current
         measure_mode_flag = 4; // Start ZC (Zero Cross)
         break;
     default:
