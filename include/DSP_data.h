@@ -17,7 +17,8 @@
 
 
 // Pubilc Function Declaration
-void calculate_peak_value(system_data *_adc_data);
+void setup_DSP_parameter();
+void process_data_via_DSP(system_data *_adc_data);
 
 
 #endif // End of DSP_DATA_H

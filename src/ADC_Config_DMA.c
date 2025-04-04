@@ -220,7 +220,7 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
     float window_time_us = 0;
     uint32_t timer3_period = 0; // 32 bit is needed -to handle number Big number on Calculation
     uint8_t timer3_prescaler = 4;
-    uint8_t adc_sample_rate = 32;
+    uint8_t _sample_rate = ADC_SAMPLE_RATE;
 
     float APB1_Timer_clock_set_Time_nS = 13.889;                                                  // 10^3/72MHz = 13.889nS; APB1 Timer Clock = 72MHz
     float After_timer3_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * (timer3_prescaler + 1); // This is correct formula
@@ -228,7 +228,7 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
     if (_measure_frequency > 0)
     {
         window_time_us = 1000000 / _measure_frequency; // Microseconds
-        window_time_us /= adc_sample_rate;
+        window_time_us /= _sample_rate;
 
         timer3_period = window_time_us * 1000;           // Convert into uS into nS
         timer3_period /= After_timer3_prescaler_time_nS; // Timer frequency

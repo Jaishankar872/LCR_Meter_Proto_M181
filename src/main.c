@@ -82,6 +82,7 @@ void system_setup()
   set_ADC_Measure_window(process_data.set_freq);
   // Display
   screen1_home_print(process_data);
+  setup_DSP_parameter();
 }
 
 void system_loop()
@@ -101,7 +102,12 @@ void system_loop()
   process_data.adc_measure_status = get_measure_status();
   if (process_data.adc_measure_status == 4)
   {
-    // First Read -> Print
+    // First Process the data
+    // ->Display value
+    process_data_via_DSP(&process_data);
+
+    // Update the display
+    screen1_home_print(process_data);
     if (process_data.uart_all_print_DSO)
     {
       const int _print_delay = 20; // Milli Seconds
@@ -109,17 +115,13 @@ void system_loop()
       for (int i = 0; i < DMA_ADC_data_length; i++)
       {
         printf("%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i],
-                                                   adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
+               adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
         HAL_Delay(_print_delay);
       }
-      // GPIOA->ODR ^= GPIO_PIN_5; // Toggle LED
-      // ->Display value
-      calculate_peak_value(&process_data);
-      ADC_recapture_data();
-      // Update the display
-      screen1_home_print(process_data);
-      HAL_Delay(800); // Pause for a moment
     }
+    // Restart the Data capture
+    ADC_recapture_data();
+    HAL_Delay(800); // Pause for a moment
   }
   else
   {
