@@ -52,6 +52,33 @@ void ssd1306_display_sofwire_Init(void)
     _screen1_print_one_time = 1;
 }
 
+void bootup_screen(uint8_t _boot_up_display_time)
+{
+    ssd1306_SetCursor(0, 0);
+    ssd1306_WriteString("M181", Font_7x10, White);
+
+    ssd1306_SetCursor(90, 0);
+    sprintf(buffer_display, "V%.2f", fw_version);
+    ssd1306_WriteString(buffer_display, Font_7x10, White);
+
+    ssd1306_SetCursor(16, 14);
+    ssd1306_WriteString("LCR Meter", Font_11x18, White);
+    ssd1306_FillRectangle(10, 32 - 1, SSD1306_WIDTH - 10, 32, White);
+
+    ssd1306_SetCursor(20, 38);
+    ssd1306_WriteString("HW - JYETech", Font_7x10, White);
+    ssd1306_SetCursor(0, 52);
+    ssd1306_WriteString("FW - By Jaishankar", Font_7x10, White);
+
+    ssd1306_UpdateScreen();
+    HAL_Delay(_boot_up_display_time * 1000); // Seconds
+    // Clear the display
+    ssd1306_Fill(Black);
+    ssd1306_UpdateScreen();
+    // Setting the one time print flag
+    _screen1_print_one_time = 1;
+}
+
 void screen1_home_print(system_data _display)
 {
     /*

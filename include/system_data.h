@@ -5,7 +5,7 @@
 #include <stdint.h> // For uint8_t, uint16_t, etc.
 
 // Firmware Version Global Variable
-#define fw_version 0.19
+#define fw_version 0.20
 
 // Define the struct
 typedef struct system_data

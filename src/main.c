@@ -72,6 +72,7 @@ void system_setup()
 
   // Display Initialization
   ssd1306_display_sofwire_Init();
+  bootup_screen(4); // Wait for 4 Seconds
 
   // Default: Set-> Update -> Display ** Must required
   // Set

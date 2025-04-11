@@ -3,7 +3,7 @@
  * @brief SSD1306 display driver using software I2C
  * @details This is a SSD1306 display driver using software I2C
  * @date 2021-07-15
- * 
+ *
  * @author Jaishankar M
  */
 #ifndef __M181_DISPLAY_SOFTWIRE_H
@@ -20,6 +20,7 @@
 
 // Public Function Declaration
 void ssd1306_display_sofwire_Init(void);
+void bootup_screen(uint8_t _boot_up_display_time);
 void screen1_home_print(system_data _display);
 
 #endif // __M181_DISPLAY_SOFTWIRE_H

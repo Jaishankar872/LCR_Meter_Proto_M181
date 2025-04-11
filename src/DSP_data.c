@@ -61,14 +61,19 @@ void process_data_via_DSP(system_data *_adc_data)
 
     _adc_data->VI_phase = fabsf(fabsf(_adc_data->voltage_phase) - fabsf(_adc_data->current_phase)); // Phase calculation for voltage & current
 
-    _adc_data->esr = LCR_calculation(3, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // ESR
+    _adc_data->esr = LCR_calculation(3, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase);       // ESR
+    _adc_data->tan_delta = LCR_calculation(4, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // Tan Delta calculation
+
     if (_adc_data->LCR_Mode == 1)
-        _adc_data->inductance = 0; // Inductance
+        _adc_data->inductance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // Inductance
     else if (_adc_data->LCR_Mode == 2)
         _adc_data->capacitance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // Capacitance
     else if (_adc_data->LCR_Mode == 3)
+    {
         _adc_data->resistance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // ESR
-
+        _adc_data->esr = 0;
+        _adc_data->tan_delta = 0;
+    }
     // Unit conversion for capacitance, inductance, and resistance
     _adc_data->unit_capacitance = unit_conversion(&_adc_data->capacitance);
     _adc_data->unit_inductance = unit_conversion(&_adc_data->inductance);
@@ -226,6 +231,10 @@ float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _ph
     else if (_mode == 3)
     { // ESR: real part of the impedance
         return _impedance * fabsf(cosf(phase_rad));
+    }
+    else if (_mode == 4)
+    { // Tan Delta calculation
+        return (_impedance * fabsf(cosf(phase_rad))) / reactance;
     }
     return 0.0f;
 }
