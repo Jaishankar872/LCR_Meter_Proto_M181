@@ -20,12 +20,14 @@ int16_t max_adc_Volt_AFC = 0, min_adc_Volt_AFC = 4096;
 int16_t max_adc_Current = 0, min_adc_Current = 4096;
 int16_t max_adc_Current_AFC = 0, min_adc_Current_AFC = 4096;
 
+int16_t _phase_offset_array_index = 0;
+
 // Private Function Declaration
 void generate_ref_signal(int _length);
-void calculate_peak_value(system_data *_adc_data1);
+void calculate_signal_amplitude(system_data *_adc_data1);
 float adc_volt_convert(int16_t raw_adc);
 int16_t low_pass_filter_calc(int16_t input, int16_t prev_output);
-float phase_value_calculation(int16_t _in_array[DMA_ADC_data_length], int16_t _length);
+float phase_value_calculation(int16_t _in_array[], int16_t _start_l, int16_t _length);
 
 // Function Definition
 void setup_DSP_parameter()
@@ -35,8 +37,9 @@ void setup_DSP_parameter()
 
 void process_data_via_DSP(system_data *_adc_data)
 {
-    calculate_peak_value(_adc_data);
+    calculate_signal_amplitude(_adc_data);
 
+    _phase_offset_array_index = 0;
     for (int i = 1; i < DMA_ADC_data_length; i++)
     {
         // Low pass filter for voltage
@@ -62,52 +65,61 @@ int16_t low_pass_filter_calc(int16_t input, int16_t prev_output)
     return (int16_t)((ALPHA * input) + ((1.0f - ALPHA) * prev_output));
 }
 
-void calculate_peak_value(system_data *_adc_data1) // Pointer used to edit in struct value
+void calculate_signal_amplitude(system_data *_adc_data1)
 {
-    // Reset the value before get into the loop
-    // Voltage Value Reset
-    max_adc_Volt = 0;
-    min_adc_Volt = 4096;
-    max_adc_Volt_AFC = 0;
-    min_adc_Volt_AFC = 4096;
+    double sum_sq_adc_Volt = 0.0, sum_sq_AFC_adc_Volt = 0.0;
+    double sum_sq_adc_Current = 0.0, sum_sq_AFC_adc_Current = 0.0;
+    double sum_adc_Volt = 0.0, sum_AFC_adc_Volt = 0.0;
+    double sum_adc_Current = 0.0, sum_AFC_adc_Current = 0.0;
+    int n = DMA_ADC_data_length;
 
-    // Current Value Reset
-    max_adc_Current = 0;
-    min_adc_Current = 4096;
-    max_adc_Current_AFC = 0;
-    min_adc_Current_AFC = 4096;
+    // Compute DC offset for each channel
+    for (int i = 0; i < n; i++) {
+        sum_adc_Volt       += adc_Volt_data[i];
+        sum_AFC_adc_Volt   += AFC_adc_Volt_data[i];
+        sum_adc_Current    += adc_Current_data[i];
+        sum_AFC_adc_Current += AFC_adc_Current_data[i];
+    }
+    double offset_Volt       = sum_adc_Volt / n;
+    double offset_AFC_Volt   = sum_AFC_adc_Volt / n;
+    double offset_Current    = sum_adc_Current / n;
+    double offset_AFC_Current = sum_AFC_adc_Current / n;
 
-    for (int i = 0; i < DMA_ADC_data_length; i++)
-    {
-        // Voltage Value Reset
-        // Maximum & Minimum calculation
-        if (adc_Volt_data[i] > max_adc_Volt)
-            max_adc_Volt = adc_Volt_data[i];
-        if (adc_Volt_data[i] < min_adc_Volt)
-            min_adc_Volt = adc_Volt_data[i];
-        // Maximum & Minimum calculation - AFC
-        if (AFC_adc_Volt_data[i] > max_adc_Volt_AFC)
-            max_adc_Volt_AFC = AFC_adc_Volt_data[i];
-        if (AFC_adc_Volt_data[i] < min_adc_Volt_AFC)
-            min_adc_Volt_AFC = AFC_adc_Volt_data[i];
+    // Remove DC offset and accumulate squared deviations
+    for (int i = 0; i < n; i++) {
+        double val_Volt       = adc_Volt_data[i] - offset_Volt;
+        double val_AFC_Volt   = AFC_adc_Volt_data[i] - offset_AFC_Volt;
+        double val_Current    = adc_Current_data[i] - offset_Current;
+        double val_AFC_Current = AFC_adc_Current_data[i] - offset_AFC_Current;
 
-        // Current Value Reset
-        // Maximum & Minimum calculation
-        if (adc_Current_data[i] > max_adc_Current)
-            max_adc_Current = adc_Current_data[i];
-        if (adc_Current_data[i] < min_adc_Current)
-            min_adc_Current = adc_Current_data[i];
-        // Maximum & Minimum calculation -AFC
-        if (AFC_adc_Current_data[i] > max_adc_Current_AFC)
-            max_adc_Current_AFC = AFC_adc_Current_data[i];
-        if (AFC_adc_Current_data[i] < min_adc_Current_AFC)
-            min_adc_Current_AFC = AFC_adc_Current_data[i];
+        sum_sq_adc_Volt       += val_Volt * val_Volt;
+        sum_sq_AFC_adc_Volt   += val_AFC_Volt * val_AFC_Volt;
+        sum_sq_adc_Current    += val_Current * val_Current;
+        sum_sq_AFC_adc_Current += val_AFC_Current * val_AFC_Current;
     }
 
-    _adc_data1->pk_pk_voltage = adc_volt_convert(max_adc_Volt - min_adc_Volt);
-    _adc_data1->pk_pk_AFC_volt = adc_volt_convert(max_adc_Volt_AFC - min_adc_Volt_AFC);
-    _adc_data1->pk_pk_current = adc_volt_convert(max_adc_Current - min_adc_Current);
-    _adc_data1->pk_pk_AFC_current = adc_volt_convert(max_adc_Current_AFC - min_adc_Current_AFC);
+    // Calculate RMS and convert to peak amplitude assuming sine wave: amplitude = RMS * sqrt(2)
+    double rms_Volt       = sqrt(sum_sq_adc_Volt / n);
+    double rms_AFC_Volt   = sqrt(sum_sq_AFC_adc_Volt / n);
+    double rms_Current    = sqrt(sum_sq_adc_Current / n);
+    double rms_AFC_Current = sqrt(sum_sq_AFC_adc_Current / n);
+
+    double amp_Volt       = rms_Volt * sqrt(2.0);
+    double amp_AFC_Volt   = rms_AFC_Volt * sqrt(2.0);
+    double amp_Current    = rms_Current * sqrt(2.0);
+    double amp_AFC_Current = rms_AFC_Current * sqrt(2.0);
+
+    // Update system_data struct with amplitude after conversion
+    _adc_data1->pk_pk_voltage    = adc_volt_convert((float)amp_Volt);
+    _adc_data1->pk_pk_AFC_volt = adc_volt_convert((float)amp_AFC_Volt);
+    _adc_data1->pk_pk_current    = adc_volt_convert((float)amp_Current);
+    _adc_data1->pk_pk_AFC_current = adc_volt_convert((float)amp_AFC_Current);
+// }
+
+//     _adc_data1->pk_pk_voltage = adc_volt_convert(max_adc_Volt - min_adc_Volt);
+//     _adc_data1->pk_pk_AFC_volt = adc_volt_convert(max_adc_Volt_AFC - min_adc_Volt_AFC);
+//     _adc_data1->pk_pk_current = adc_volt_convert(max_adc_Current - min_adc_Current);
+//     _adc_data1->pk_pk_AFC_current = adc_volt_convert(max_adc_Current_AFC - min_adc_Current_AFC);
 }
 
 float adc_volt_convert(int16_t raw_adc)
@@ -156,11 +168,12 @@ void generate_ref_signal(int _length)
     }
 }
 
-float phase_value_calculation(int16_t _in_array[], int16_t _length)
+float phase_value_calculation(int16_t _in_array[], int16_t _start_l, int16_t _length)
 {
-    float I_sum = 0.0, Q_sum = 0.0;
+    float I_sum = 0.0f, Q_sum = 0.0f;
+    int sample_count = _length - _start_l;
 
-    for (int i = 0; i < _length; i++)
+    for (int i = _start_l; i < _length; i++)
     {
         // Multiply signal by 0° and 90° square wave references
         I_sum += _in_array[i] * ref0_data[i];
@@ -168,11 +181,10 @@ float phase_value_calculation(int16_t _in_array[], int16_t _length)
     }
 
     // Normalize by sample count and scale for square-wave demodulation (2/pi)
-    float I_avg = (I_sum / _length) * (3.14159 / 2.0);
-    float Q_avg = (Q_sum / _length) * (3.14159 / 2.0);
+    float I_avg = (I_sum / sample_count) * (3.14159f / 2.0f);
+    float Q_avg = (Q_sum / sample_count) * (3.14159f / 2.0f);
 
-    // Calculate phase angle in degrees
-    float phase = atan2f(Q_avg, I_avg) * (180.0 / 3.14159);
-
+    // Calculate phase angle in degrees using atan2f
+    float phase = atan2f(Q_avg, I_avg) * (180.0f / 3.14159f);
     return phase;
 }
