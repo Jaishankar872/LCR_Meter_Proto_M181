@@ -51,12 +51,12 @@ void process_data_via_DSP(system_data *_adc_data)
         // Low pass filter for AFC current
         AFC_adc_Current_data[i] = low_pass_filter_calc(AFC_adc_Current_data[i], AFC_adc_Current_data[i - 1]);
     }
-    _adc_data->voltage_phase = phase_value_calculation(adc_Volt_data, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Volt_data, DMA_ADC_data_length);              // Phase calculation for voltage
-    _adc_data->current_phase = fabsf(phase_value_calculation(adc_Current_data, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Current_data, DMA_ADC_data_length)); // Phase calculation for current
+    _adc_data->voltage_phase = phase_value_calculation(adc_Volt_data, _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Volt_data, _phase_offset_array_index, DMA_ADC_data_length);              // Phase calculation for voltage
+    _adc_data->current_phase = fabsf(phase_value_calculation(adc_Current_data, _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Current_data, _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
 
     _adc_data->current_phase -= 180;
 
-    _adc_data->VI_phase = fabs(_adc_data->voltage_phase) - fabs(_adc_data->current_phase); // Phase calculation for voltage & current
+    _adc_data->VI_phase = fabsf(fabsf(_adc_data->voltage_phase) - fabsf(_adc_data->current_phase)); // Phase calculation for voltage & current
 }
 
 int16_t low_pass_filter_calc(int16_t input, int16_t prev_output)
@@ -74,52 +74,48 @@ void calculate_signal_amplitude(system_data *_adc_data1)
     int n = DMA_ADC_data_length;
 
     // Compute DC offset for each channel
-    for (int i = 0; i < n; i++) {
-        sum_adc_Volt       += adc_Volt_data[i];
-        sum_AFC_adc_Volt   += AFC_adc_Volt_data[i];
-        sum_adc_Current    += adc_Current_data[i];
+    for (int i = 0; i < n; i++)
+    {
+        sum_adc_Volt += adc_Volt_data[i];
+        sum_AFC_adc_Volt += AFC_adc_Volt_data[i];
+        sum_adc_Current += adc_Current_data[i];
         sum_AFC_adc_Current += AFC_adc_Current_data[i];
     }
-    double offset_Volt       = sum_adc_Volt / n;
-    double offset_AFC_Volt   = sum_AFC_adc_Volt / n;
-    double offset_Current    = sum_adc_Current / n;
+    double offset_Volt = sum_adc_Volt / n;
+    double offset_AFC_Volt = sum_AFC_adc_Volt / n;
+    double offset_Current = sum_adc_Current / n;
     double offset_AFC_Current = sum_AFC_adc_Current / n;
 
     // Remove DC offset and accumulate squared deviations
-    for (int i = 0; i < n; i++) {
-        double val_Volt       = adc_Volt_data[i] - offset_Volt;
-        double val_AFC_Volt   = AFC_adc_Volt_data[i] - offset_AFC_Volt;
-        double val_Current    = adc_Current_data[i] - offset_Current;
+    for (int i = 0; i < n; i++)
+    {
+        double val_Volt = adc_Volt_data[i] - offset_Volt;
+        double val_AFC_Volt = AFC_adc_Volt_data[i] - offset_AFC_Volt;
+        double val_Current = adc_Current_data[i] - offset_Current;
         double val_AFC_Current = AFC_adc_Current_data[i] - offset_AFC_Current;
 
-        sum_sq_adc_Volt       += val_Volt * val_Volt;
-        sum_sq_AFC_adc_Volt   += val_AFC_Volt * val_AFC_Volt;
-        sum_sq_adc_Current    += val_Current * val_Current;
+        sum_sq_adc_Volt += val_Volt * val_Volt;
+        sum_sq_AFC_adc_Volt += val_AFC_Volt * val_AFC_Volt;
+        sum_sq_adc_Current += val_Current * val_Current;
         sum_sq_AFC_adc_Current += val_AFC_Current * val_AFC_Current;
     }
 
     // Calculate RMS and convert to peak amplitude assuming sine wave: amplitude = RMS * sqrt(2)
-    double rms_Volt       = sqrt(sum_sq_adc_Volt / n);
-    double rms_AFC_Volt   = sqrt(sum_sq_AFC_adc_Volt / n);
-    double rms_Current    = sqrt(sum_sq_adc_Current / n);
+    double rms_Volt = sqrt(sum_sq_adc_Volt / n);
+    double rms_AFC_Volt = sqrt(sum_sq_AFC_adc_Volt / n);
+    double rms_Current = sqrt(sum_sq_adc_Current / n);
     double rms_AFC_Current = sqrt(sum_sq_AFC_adc_Current / n);
 
-    double amp_Volt       = rms_Volt * sqrt(2.0);
-    double amp_AFC_Volt   = rms_AFC_Volt * sqrt(2.0);
-    double amp_Current    = rms_Current * sqrt(2.0);
+    double amp_Volt = rms_Volt * sqrt(2.0);
+    double amp_AFC_Volt = rms_AFC_Volt * sqrt(2.0);
+    double amp_Current = rms_Current * sqrt(2.0);
     double amp_AFC_Current = rms_AFC_Current * sqrt(2.0);
 
     // Update system_data struct with amplitude after conversion
-    _adc_data1->pk_pk_voltage    = adc_volt_convert((float)amp_Volt);
-    _adc_data1->pk_pk_AFC_volt = adc_volt_convert((float)amp_AFC_Volt);
-    _adc_data1->pk_pk_current    = adc_volt_convert((float)amp_Current);
-    _adc_data1->pk_pk_AFC_current = adc_volt_convert((float)amp_AFC_Current);
-// }
-
-//     _adc_data1->pk_pk_voltage = adc_volt_convert(max_adc_Volt - min_adc_Volt);
-//     _adc_data1->pk_pk_AFC_volt = adc_volt_convert(max_adc_Volt_AFC - min_adc_Volt_AFC);
-//     _adc_data1->pk_pk_current = adc_volt_convert(max_adc_Current - min_adc_Current);
-//     _adc_data1->pk_pk_AFC_current = adc_volt_convert(max_adc_Current_AFC - min_adc_Current_AFC);
+    _adc_data1->rms_voltage = adc_volt_convert((float)amp_Volt);
+    _adc_data1->rms_AFC_volt = adc_volt_convert((float)amp_AFC_Volt);
+    _adc_data1->rms_current = adc_volt_convert((float)amp_Current);
+    _adc_data1->rms_AFC_current = adc_volt_convert((float)amp_AFC_Current);
 }
 
 float adc_volt_convert(int16_t raw_adc)

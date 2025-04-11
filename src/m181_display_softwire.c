@@ -26,6 +26,11 @@ uint8_t _screen1_print_one_time = 0;
 // Private Function Declaration
 void software_I2C_GPIO_init();
 
+// Available Font Size
+// Font_7x10, Font_11x18, Font_16x26
+// Font_11x18 - Big
+// Font_7x10  - Small General
+
 // Function Definition
 void ssd1306_display_sofwire_Init(void)
 {
@@ -46,91 +51,110 @@ void ssd1306_display_sofwire_Init(void)
 
 void screen1_home_print(system_data _display)
 {
-    // Line number variable declaration
-    uint8_t _line_spacing_y = 11;
-    uint8_t _line1_position_y = 8 + _line_spacing_y;
-    uint8_t _line2_position_y = _line1_position_y + _line_spacing_y;
-    uint8_t _line3_position_y = _line2_position_y + _line_spacing_y;
-    uint8_t _line4_position_y = _line3_position_y + _line_spacing_y;
+    /*
+     * Display Screen Template
+     * 1. <Mode> <Frequency> <FW Version>
+     * 2. Z = <Impeadance> <Phase>
+     * 3. <Voltage> <Current> <Status>
+     * 4. <ESR> <Tan Delta> <>
+     */
 
-    uint8_t _offset_position_x = 5;
-    uint8_t _value_position_x = 48;
-    uint8_t _unit_position_x = 85;
+    // Define positions (constants) for readability
+    const uint8_t offset_x = 1, line_spacing_y = 13;
+
+    const uint8_t line1_y = 0;
+    const uint8_t val1_x = offset_x, val2_x = 36, val3_x = 59, val4_x = 92;
+
+    const uint8_t line2_y = line_spacing_y;
+    const uint8_t val21_x = offset_x, val22_x = 22, val23_x = 84, val24_x = 92;
+
+    const uint8_t line3_y = 8 + line2_y + line_spacing_y;
+    const uint8_t val31_x = offset_x, val32_x = 16, val33_x = 58, val34_x = 70, val35_x = 110;
+
+    const uint8_t line4_y = line3_y + line_spacing_y;
+    const uint8_t val41_x = offset_x, val42_x = 20, val43_x = 62, val44_x = 75, val45_x = 116;
 
     if (_screen1_print_one_time)
     {
-        _screen1_print_one_time = 0; // Clear the flag
-                                     // Write data to local screenbuffer
-        ssd1306_SetCursor(_offset_position_x, 0);
-        ssd1306_WriteString("LCR Ser", Font_11x18, White);
-
-        ssd1306_SetCursor(92, 0);
+        _screen1_print_one_time = 0; // Clear one-time flag
+        // Line 1
+        ssd1306_SetCursor(val1_x, line1_y);
+        ssd1306_WriteString("Ser", Font_7x10, White);
+        ssd1306_SetCursor(val3_x, line1_y);
+        ssd1306_WriteString("kHz", Font_7x10, White);
+        ssd1306_SetCursor(val4_x, line1_y);
         sprintf(buffer_display, "V%.2f", fw_version);
         ssd1306_WriteString(buffer_display, Font_7x10, White);
-
-        ssd1306_SetCursor(_offset_position_x, _line1_position_y);
-        ssd1306_WriteString("Freq :", Font_7x10, White);
-        ssd1306_SetCursor(_unit_position_x, _line1_position_y);
-        ssd1306_WriteString("Hz", Font_7x10, White);
-
-        ssd1306_SetCursor(_offset_position_x, _line2_position_y);
-        ssd1306_WriteString("UART :", Font_7x10, White);
-        ssd1306_SetCursor(_unit_position_x, _line2_position_y);
-        ssd1306_WriteString("**", Font_7x10, White);
-
-        ssd1306_SetCursor(_offset_position_x, _line3_position_y);
-        ssd1306_WriteString("Volt :", Font_7x10, White);
-        ssd1306_SetCursor(_unit_position_x + 2, _line3_position_y);
-        ssd1306_WriteString("V", Font_7x10, White);
-
-        ssd1306_SetCursor(_offset_position_x, _line4_position_y);
-        ssd1306_WriteString(" Amp :", Font_7x10, White);
-        ssd1306_SetCursor(_unit_position_x + 2, _line4_position_y);
-        ssd1306_WriteString("V", Font_7x10, White);
-        // Update the display
+        // Line 2
+        ssd1306_SetCursor(val21_x, line2_y);
+        ssd1306_WriteString("Z ", Font_11x18, White);
+        ssd1306_SetCursor(val23_x, line2_y + 4);
+        ssd1306_WriteString("<", Font_7x10, White);
+        // Line 3
+        ssd1306_SetCursor(val31_x, line3_y);
+        ssd1306_WriteString("V:", Font_7x10, White);
+        ssd1306_SetCursor(val33_x, line3_y);
+        ssd1306_WriteString("A:", Font_7x10, White);
+        // Line 4
+        ssd1306_SetCursor(val41_x, line4_y);
+        ssd1306_WriteString("ER:", Font_7x10, White);
+        ssd1306_SetCursor(val43_x, line4_y);
+        ssd1306_WriteString("D:", Font_7x10, White);
         ssd1306_UpdateScreen();
     }
 
     if (_display.adc_measure_status == 4)
     {
-        // Write Frequency value
-        ssd1306_SetCursor(_value_position_x, _line1_position_y);
-        if (_display.set_freq >= 1000)
-            sprintf(buffer_display, "%d", _display.set_freq);
+        // Line 1: Frequency display
+        ssd1306_SetCursor(val2_x, line1_y);
+        if (_display.set_freq == 1000)
+            sprintf(buffer_display, "1.0");
         else
-            sprintf(buffer_display, "%d ", _display.set_freq);
+            sprintf(buffer_display, "%0.1f", (float)(_display.set_freq) / 1000);
         ssd1306_WriteString(buffer_display, Font_7x10, White);
 
-        // Write UART Mode
-        ssd1306_SetCursor(_value_position_x, _line2_position_y);
+        // Line 2: Impedance and Phase
+        ssd1306_SetCursor(val22_x, line2_y);
+        float impedance = _display.rms_voltage / _display.rms_current;
+        if (impedance < 10.0)
+            sprintf(buffer_display, "%.3f", impedance); // 1.234
+        else
+            sprintf(buffer_display, "%.2f", impedance); // 12.34
+        ssd1306_WriteString(buffer_display, Font_11x18, White);
+        ssd1306_SetCursor(val24_x, line2_y + 4);
+        if (_display.VI_phase < 10.0)
+            sprintf(buffer_display, "0%.1f ", _display.VI_phase); // adds space for 01.2 format
+        else
+            sprintf(buffer_display, "%.1f ", _display.VI_phase); // 12.3
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
+
+        // Line 3: Voltage and Current reading
+        ssd1306_SetCursor(val32_x, line3_y);
+        sprintf(buffer_display, "%.3f", (_display.rms_voltage >= 0) ? _display.rms_voltage : 0.000);
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
+        ssd1306_SetCursor(val34_x, line3_y);
+        sprintf(buffer_display, "%.3f", (_display.rms_current >= 0) ? _display.rms_current : 0.000);
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
+
+        // Line 4: ESR and Tan Delta
+        ssd1306_SetCursor(val42_x, line4_y);
+        sprintf(buffer_display, "%.3f", (_display.esr >= 0) ? _display.esr : 0.000);
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
+        ssd1306_SetCursor(val44_x, line4_y);
+        sprintf(buffer_display, "%.3f", (_display.tan_delta >= 0) ? _display.QF : 0.000);
+        ssd1306_WriteString(buffer_display, Font_7x10, White);
+        ssd1306_SetCursor(val45_x, line4_y);
         if (_display.uart_all_print_DSO)
-            sprintf(buffer_display, "ON ");
+            sprintf(buffer_display, "N");
         else
-            sprintf(buffer_display, "OFF");
-        ssd1306_WriteString(buffer_display, Font_7x10, White);
-
-        // Write Volt
-        ssd1306_SetCursor(_value_position_x, _line3_position_y);
-        if (_display.pk_pk_voltage >= 0) // Only Positive Value
-            sprintf(buffer_display, "%.3f", _display.pk_pk_voltage);
-        else
-            sprintf(buffer_display, "0.000");
-        ssd1306_WriteString(buffer_display, Font_7x10, White);
-
-        // Write Amp
-        ssd1306_SetCursor(_value_position_x, _line4_position_y);
-        if (_display.pk_pk_current >= 0) // Only Positive Value
-            sprintf(buffer_display, "%.3f", _display.pk_pk_current);
-        else
-            sprintf(buffer_display, "0.000");
+            sprintf(buffer_display, "F");
         ssd1306_WriteString(buffer_display, Font_7x10, White);
     }
 
-    // Status
-    ssd1306_SetCursor(_unit_position_x + 25, _line3_position_y);
-    sprintf(buffer_display, "%d", _display.adc_measure_status);
+    // Line 3: Status
+    ssd1306_SetCursor(val35_x, line3_y);
+    sprintf(buffer_display, "*%d", _display.adc_measure_status);
     ssd1306_WriteString(buffer_display, Font_7x10, White);
-    // Update the display
     ssd1306_UpdateScreen();
 }
 
