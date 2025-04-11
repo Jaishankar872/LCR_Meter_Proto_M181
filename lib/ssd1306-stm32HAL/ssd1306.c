@@ -1,4 +1,5 @@
 #include "ssd1306.h"
+#include "math.h"
 
 // Screenbuffer
 static uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
@@ -234,4 +235,19 @@ void ssd1306_SetCursor(uint8_t x, uint8_t y)
 {
     SSD1306.CurrentX = x;
     SSD1306.CurrentY = y;
+}
+
+/* Draw a filled rectangle */
+void ssd1306_FillRectangle(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2, SSD1306_COLOR color) {
+    uint8_t x_start = ((x1<=x2) ? x1 : x2);
+    uint8_t x_end   = ((x1<=x2) ? x2 : x1);
+    uint8_t y_start = ((y1<=y2) ? y1 : y2);
+    uint8_t y_end   = ((y1<=y2) ? y2 : y1);
+
+    for (uint8_t y= y_start; (y<= y_end)&&(y<SSD1306_HEIGHT); y++) {
+        for (uint8_t x= x_start; (x<= x_end)&&(x<SSD1306_WIDTH); x++) {
+            ssd1306_DrawPixel(x, y, color);
+        }
+    }
+    return;
 }
