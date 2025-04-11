@@ -77,6 +77,7 @@ void system_setup()
   // Set
   process_data.set_freq = 1000;        // Default frequency
   process_data.uart_all_print_DSO = 1; // Default Mode
+  process_data.LCR_Mode = 3;           // Default Mode - Capacitance
   // Update
   set_sine_wave_frequency(process_data.set_freq);
   set_ADC_Measure_window(process_data.set_freq);

@@ -5,7 +5,7 @@
 #include <stdint.h> // For uint8_t, uint16_t, etc.
 
 // Firmware Version Global Variable
-#define fw_version 0.18
+#define fw_version 0.19
 
 // Define the struct
 typedef struct system_data
@@ -16,8 +16,10 @@ typedef struct system_data
     int8_t VI_measure_mode;
     float rms_voltage, rms_AFC_volt, rms_current, rms_AFC_current;
     float voltage_phase, current_phase, VI_phase;
+    float capacitance, inductance, resistance;
+    int8_t unit_capacitance, unit_inductance, unit_resistance, unit_esr;
     float impedance, esr, tan_delta, QF;
-    uint8_t uart_all_print_DSO;
+    uint8_t uart_all_print_DSO, LCR_Mode;
     uint8_t adc_measure_status; // 1 -> Start Voltage, 2 -> Start Current, 3 -> Both are Ready
 } system_data;
 

@@ -13,6 +13,8 @@
         "stm32f1xx_hal_dma.h": "c",
         "buttons_and_led.h": "c",
         "system_data.h": "c",
-        "dsp_data.h": "c"
+        "dsp_data.h": "c",
+        "stm32_sw_i2c.h": "c",
+        "fonts.h": "c"
     }
 }

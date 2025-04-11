@@ -10,6 +10,7 @@
 
 // Private Includes
 #include <math.h>
+#define PI 3.14159f
 
 // Private Variable Declaration
 int8_t ref0_data[DMA_ADC_data_length];
@@ -28,6 +29,8 @@ void calculate_signal_amplitude(system_data *_adc_data1);
 float adc_volt_convert(int16_t raw_adc);
 int16_t low_pass_filter_calc(int16_t input, int16_t prev_output);
 float phase_value_calculation(int16_t _in_array[], int16_t _start_l, int16_t _length);
+float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _phase);
+int8_t unit_conversion(float *value);
 
 // Function Definition
 void setup_DSP_parameter()
@@ -38,6 +41,7 @@ void setup_DSP_parameter()
 void process_data_via_DSP(system_data *_adc_data)
 {
     calculate_signal_amplitude(_adc_data);
+    _adc_data->impedance = _adc_data->rms_voltage / _adc_data->rms_current;
 
     _phase_offset_array_index = 0;
     for (int i = 1; i < DMA_ADC_data_length; i++)
@@ -53,10 +57,23 @@ void process_data_via_DSP(system_data *_adc_data)
     }
     _adc_data->voltage_phase = phase_value_calculation(adc_Volt_data, _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Volt_data, _phase_offset_array_index, DMA_ADC_data_length);              // Phase calculation for voltage
     _adc_data->current_phase = fabsf(phase_value_calculation(adc_Current_data, _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Current_data, _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
-
     _adc_data->current_phase -= 180;
 
     _adc_data->VI_phase = fabsf(fabsf(_adc_data->voltage_phase) - fabsf(_adc_data->current_phase)); // Phase calculation for voltage & current
+
+    _adc_data->esr = LCR_calculation(3, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // ESR
+    if (_adc_data->LCR_Mode == 1)
+        _adc_data->inductance = 0; // Inductance
+    else if (_adc_data->LCR_Mode == 2)
+        _adc_data->capacitance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // Capacitance
+    else if (_adc_data->LCR_Mode == 3)
+        _adc_data->resistance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // ESR
+
+    // Unit conversion for capacitance, inductance, and resistance
+    _adc_data->unit_capacitance = unit_conversion(&_adc_data->capacitance);
+    _adc_data->unit_inductance = unit_conversion(&_adc_data->inductance);
+    _adc_data->unit_resistance = unit_conversion(&_adc_data->resistance);
+    _adc_data->unit_esr = unit_conversion(&_adc_data->esr);
 }
 
 int16_t low_pass_filter_calc(int16_t input, int16_t prev_output)
@@ -183,4 +200,61 @@ float phase_value_calculation(int16_t _in_array[], int16_t _start_l, int16_t _le
     // Calculate phase angle in degrees using atan2f
     float phase = atan2f(Q_avg, I_avg) * (180.0f / 3.14159f);
     return phase;
+}
+
+float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _phase)
+{
+    // Convert phase to radians
+    float phase_rad = _phase * (PI / 180.0f);
+    // Compute the reactive component (absolute value)
+    float reactance = _impedance * fabsf(sinf(phase_rad));
+    if (reactance < 1e-6f)
+        return 0.0f;
+    // Angular frequency in rad/s
+    float omega = 2.0f * PI * _freq;
+
+    if (_mode == 1)
+    { // Inductance: L = X / ω, convert to microHenries
+        float inductance = reactance / omega;
+        return inductance * 1e6f;
+    }
+    else if (_mode == 2)
+    { // Capacitance: C = 1/(ωX), convert to nanoFarads
+        float capacitance = 1.0f / (omega * reactance);
+        return capacitance * 1e9f;
+    }
+    else if (_mode == 3)
+    { // ESR: real part of the impedance
+        return _impedance * fabsf(cosf(phase_rad));
+    }
+    return 0.0f;
+}
+
+int8_t unit_conversion(float *value)
+{
+    // No conversion needed if the value is between 1.0 and 999.9
+    if (*value >= 1.0f && *value <= 999.9f)
+    {
+        return 0; // No unit conversion
+    }
+    // Conversion for values larger than 999.9
+    else if (*value > 999.9f)
+    {
+        if (*value < 1e6f)
+        {
+            *value /= 1000.0f; // Convert to kilo
+            return 1;          // Unit: Kilo
+        }
+        else // *value is at least 1e6
+        {
+            *value /= 1e6f; // Convert to mega
+            return 2;       // Unit: Mega
+        }
+    }
+    // Conversion for values lower than 1
+    else // *value < 1.0f
+    {
+        *value *= 1000.0f; // Convert to milli
+        return -1;         // Unit: Milli
+    }
 }

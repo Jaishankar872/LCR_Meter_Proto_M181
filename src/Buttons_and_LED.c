@@ -151,6 +151,14 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
 
     if (get_buttons_status(1)) // Button 1 HOLD
     {
+        // Yet to add
+        _control->uart_all_print_DSO = !_control->uart_all_print_DSO;
+        _change_happen = 1;
+        _btn2_time = HAL_GetTick();
+    }
+
+    if (get_buttons_status(2)) // Button 2 S/P
+    {
         // _control the frequency
         uint16_t _frequency_array[3] = {100, 500, 1000};
 
@@ -167,19 +175,19 @@ uint8_t on_button_event(system_data *_control) // Pointer used to edit send valu
         _btn1_time = HAL_GetTick();
     }
 
-    if (get_buttons_status(2)) // Button 2 S/P
-    {
-        // Yet to add
-        _control->uart_all_print_DSO = !_control->uart_all_print_DSO;
-        _change_happen = 1;
-        _btn2_time = HAL_GetTick();
-    }
-
     if (get_buttons_status(3)) // Button 3 RCL
     {
         // Yet to add
         _control->led_state = !_control->led_state;
         LED_control(_control->led_state);
+
+        // Change the LCR Mode
+        // 1 -> Inductance, 2 -> Capacitance, 3 -> Resistance
+        if (_control->LCR_Mode >= 3)
+            _control->LCR_Mode = 1;
+        else
+            _control->LCR_Mode++;
+
         _change_happen = 1;
         _btn3_time = HAL_GetTick();
     }
