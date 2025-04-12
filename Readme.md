@@ -1,5 +1,5 @@
-# Goal of this Project
-   To Develop a only the Firmware for M181 LCR from JyeTech. Hope to provide understanding in basics of LCR Meter.
+# Goal
+   To Develop only the Firmware for M181 LCR Meter made by JyeTech. Hope to provide understanding in basics of LCR Meter.
 
 **Note**: Still this firmware under development.
 
@@ -15,10 +15,12 @@
 - Framework  → STM32Cube
 
 **Programming setup image**
-![alt text](docs/LCR_Meter_Program_Setup.jpg)
+
+<img src="docs/LCR_Meter_Program_Setup.jpg" alt="image" style="width:400px;height:auto;">
 
 ## Output parmeter
-![alt text](docs/output_fw-v0_20.jpg)
+<img src="docs/output_fw-v0_20.jpg" alt="image" style="width:200px;height:auto;">
+
 * Ser → Calculation mode Series or Parallel
 * 1.0kHz → Frequency signal used for measurement
 * V0.20 → Frimware Version
