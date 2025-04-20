@@ -32,4 +32,4 @@
 
 
 ***
- **Further details will be added in [Wiki page](https://github.com/Jaishankar872/LCR_Meter_Proto_M181/wiki)**
+ **Further details will be added in [Wiki page](https://docs.jaidb.in/m181_lcr/Home/)**
