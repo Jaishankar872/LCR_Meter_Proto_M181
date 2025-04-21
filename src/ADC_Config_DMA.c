@@ -277,26 +277,8 @@ void separate_ADC_CH_from_DMA()
         PA0_data_temp = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
         PA1_data_temp = (uint16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
 
-        if (measure_mode_flag == 1)
-        {
-            adc_Volt_data[i] = PA0_data_temp;
-            AFC_adc_Volt_data[i] = PA1_data_temp;
-        }
-        else if (measure_mode_flag == 2)
-        {
-            adc_Current_data[i] = PA0_data_temp;
-            AFC_adc_Current_data[i] = PA1_data_temp;
-        }
-        else if (measure_mode_flag == 3)
-        {
-            adc_Volt_data_ZC[i] = PA0_data_temp;
-            AFC_adc_Volt_data_ZC[i] = PA1_data_temp;
-        }
-        else if (measure_mode_flag == 4)
-        {
-            adc_Current_data_ZC[i] = PA0_data_temp;
-            AFC_adc_Current_data_ZC[i] = PA1_data_temp;
-        }
+        adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
+        adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
     }
     // Transfer the Status After Completing
     adc_read_complete_flag_DMA = measure_mode_flag;
@@ -326,10 +308,10 @@ uint8_t ADC_recapture_data() // Pointer used to edit in struct value
     if (get_measure_status() == 4)
     {
         adc_read_complete_flag_DMA = 0; // Reset Flag After Copying
-        return 1;       // Recapture started
+        return 1;                       // Recapture started
     }
     else
-        return 0;  // Invaild request to Recapture
+        return 0; // Invaild request to Recapture
 }
 
 void GPIO_Init_VI_GS_Pin()

@@ -44,19 +44,16 @@ void process_data_via_DSP(system_data *_adc_data)
     _adc_data->impedance = _adc_data->rms_voltage / _adc_data->rms_current;
 
     _phase_offset_array_index = 0;
-    for (int i = 1; i < DMA_ADC_data_length; i++)
+    for (int j = 1; j < 8; j++)
     {
-        // Low pass filter for voltage
-        adc_Volt_data[i] = low_pass_filter_calc(adc_Volt_data[i], adc_Volt_data[i - 1]);
-        // Low pass filter for AFC voltage
-        AFC_adc_Volt_data[i] = low_pass_filter_calc(AFC_adc_Volt_data[i], AFC_adc_Volt_data[i - 1]);
-        // Low pass filter for current
-        adc_Current_data[i] = low_pass_filter_calc(adc_Current_data[i], adc_Current_data[i - 1]);
-        // Low pass filter for AFC current
-        AFC_adc_Current_data[i] = low_pass_filter_calc(AFC_adc_Current_data[i], AFC_adc_Current_data[i - 1]);
+        for (int i = 1; i < DMA_ADC_data_length; i++)
+        {
+            // Low pass filter
+            adc_raw_data[j][i] = low_pass_filter_calc(adc_raw_data[j][i], adc_raw_data[j][i - 1]);
+        }
     }
-    _adc_data->voltage_phase = phase_value_calculation(adc_Volt_data, _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Volt_data, _phase_offset_array_index, DMA_ADC_data_length);              // Phase calculation for voltage
-    _adc_data->current_phase = fabsf(phase_value_calculation(adc_Current_data, _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(AFC_adc_Current_data, _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
+    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[0], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[1], _phase_offset_array_index, DMA_ADC_data_length);              // Phase calculation for voltage
+    _adc_data->current_phase = fabsf(phase_value_calculation(adc_raw_data[2], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[3], _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
     _adc_data->current_phase -= 180;
 
     _adc_data->VI_phase = fabsf(fabsf(_adc_data->voltage_phase) - fabsf(_adc_data->current_phase)); // Phase calculation for voltage & current
@@ -98,10 +95,10 @@ void calculate_signal_amplitude(system_data *_adc_data1)
     // Compute DC offset for each channel
     for (int i = 0; i < n; i++)
     {
-        sum_adc_Volt += adc_Volt_data[i];
-        sum_AFC_adc_Volt += AFC_adc_Volt_data[i];
-        sum_adc_Current += adc_Current_data[i];
-        sum_AFC_adc_Current += AFC_adc_Current_data[i];
+        sum_adc_Volt += adc_raw_data[0][i];
+        sum_AFC_adc_Volt += adc_raw_data[1][i];
+        sum_adc_Current += adc_raw_data[2][i];
+        sum_AFC_adc_Current += adc_raw_data[3][i];
     }
     double offset_Volt = sum_adc_Volt / n;
     double offset_AFC_Volt = sum_AFC_adc_Volt / n;
@@ -111,10 +108,10 @@ void calculate_signal_amplitude(system_data *_adc_data1)
     // Remove DC offset and accumulate squared deviations
     for (int i = 0; i < n; i++)
     {
-        double val_Volt = adc_Volt_data[i] - offset_Volt;
-        double val_AFC_Volt = AFC_adc_Volt_data[i] - offset_AFC_Volt;
-        double val_Current = adc_Current_data[i] - offset_Current;
-        double val_AFC_Current = AFC_adc_Current_data[i] - offset_AFC_Current;
+        double val_Volt = adc_raw_data[0][i] - offset_Volt;
+        double val_AFC_Volt = adc_raw_data[1][i] - offset_AFC_Volt;
+        double val_Current = adc_raw_data[2][i] - offset_Current;
+        double val_AFC_Current = adc_raw_data[3][i] - offset_AFC_Current;
 
         sum_sq_adc_Volt += val_Volt * val_Volt;
         sum_sq_AFC_adc_Volt += val_AFC_Volt * val_AFC_Volt;

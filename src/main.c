@@ -78,7 +78,7 @@ void system_setup()
   // Set
   process_data.set_freq = 1000;        // Default frequency
   process_data.uart_all_print_DSO = 1; // Default Mode
-  process_data.LCR_Mode = 3;           // Default Mode - Capacitance
+  process_data.LCR_Mode = 2;           // Default Mode - Capacitance
   // Update
   set_sine_wave_frequency(process_data.set_freq);
   set_ADC_Measure_window(process_data.set_freq);
@@ -112,12 +112,14 @@ void system_loop()
     screen1_home_print(process_data);
     if (process_data.uart_all_print_DSO)
     {
-      const int _print_delay = 20; // Milli Seconds
+      const int _print_delay = 5; // Milli Seconds
       // printf("Via DMA interrupt Callback function\n");
       for (int i = 0; i < DMA_ADC_data_length; i++)
       {
-        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i + 1, adc_Volt_data[i], AFC_adc_Volt_data[i], adc_Current_data[i], AFC_adc_Current_data[i],
-               adc_Volt_data_ZC[i], AFC_adc_Volt_data_ZC[i], adc_Current_data_ZC[i], AFC_adc_Current_data_ZC[i]);
+        printf("%d,", i + 1);
+        for (int col = 0; col < 8; col++)
+          printf("%d,", adc_raw_data[col][i]);
+        printf("\n");
         HAL_Delay(_print_delay);
       }
     }

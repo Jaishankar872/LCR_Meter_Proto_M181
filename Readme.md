@@ -18,16 +18,16 @@
 
 <img src="docs/LCR_Meter_Program_Setup.jpg" alt="image" style="width:400px;height:auto;">
 
-## Output parmeter
+## Output parameter
 <img src="docs/output_fw-v0_20.jpg" alt="image" style="width:200px;height:auto;">
 
 * Ser → Calculation mode Series or Parallel
 * 1.0kHz → Frequency signal used for measurement
-* V0.20 → Frimware Version
+* V0.20 → Firmware Version
 * C → Capacitance **Mode Change
 * V → RMS Voltage across the DUT
 * A → RMS Current flowing via DUT
-* ER → Equivalnet Series Resistor(ESR)
+* ER → Equivalent Series Resistor(ESR)
 * D → Dissipation factor (or) Tan Delta
 
 

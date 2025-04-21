@@ -16,10 +16,7 @@
 #ifndef DMA_ADC_data_length
 #define DMA_ADC_data_length 50
 #endif
-extern int16_t adc_Current_data[DMA_ADC_data_length];
-extern int16_t adc_Volt_data[DMA_ADC_data_length];
-extern int16_t AFC_adc_Current_data[DMA_ADC_data_length];
-extern int16_t AFC_adc_Volt_data[DMA_ADC_data_length];
+extern int16_t adc_raw_data[8][DMA_ADC_data_length];
 
 // Public Variable Declaration
 
