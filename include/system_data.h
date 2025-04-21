@@ -33,6 +33,16 @@ extern system_data process_data;
  * [Volt, AFC, Current, AFC] with Gain A [1- 4]
  * [Volt, AFC, Current, AFC] with Gain B [5- 8]
  */
+#define pos_volt_a 0
+#define pos_volt_AFC_a 1
+#define pos_amp_a 2
+#define pos_amp_AFC_a 3
+
+#define pos_volt_b 4
+#define pos_volt_AFC_b 5
+#define pos_amp_b 6
+#define pos_amp_AFC_b 7
+
 int16_t adc_raw_data[8][DMA_ADC_data_length];
 
 #endif // SYSTEM_DATA_H
