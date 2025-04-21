@@ -118,8 +118,12 @@ void system_loop()
       {
         printf("%d,", i + 1);
         for (int col = 0; col < 8; col++)
-          printf("%d,", adc_raw_data[col][i]);
-        printf("\n");
+        {
+          if (col != 7)
+            printf("%d,", adc_raw_data[col][i]);
+          else
+            printf("%d\r\n", adc_raw_data[col][i]);
+        }
         HAL_Delay(_print_delay);
       }
     }
