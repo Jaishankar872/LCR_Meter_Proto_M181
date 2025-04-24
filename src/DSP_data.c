@@ -52,8 +52,8 @@ void process_data_via_DSP(system_data *_adc_data)
             adc_raw_data[j][i] = low_pass_filter_calc(adc_raw_data[j][i], adc_raw_data[j][i - 1]);
         }
     }
-    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[pos_volt_a], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[pos_volt_AFC_a], _phase_offset_array_index, DMA_ADC_data_length);              // Phase calculation for voltage
-    _adc_data->current_phase = fabsf(phase_value_calculation(adc_raw_data[pos_amp_b], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[pos_amp_AFC_b], _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
+    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[(amp_gain_sel * 4)], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length);                    // Phase calculation for voltage
+    _adc_data->current_phase = fabsf(phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 3], _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
     _adc_data->current_phase -= 180;
 
     _adc_data->VI_phase = fabsf(fabsf(_adc_data->voltage_phase) - fabsf(_adc_data->current_phase)); // Phase calculation for voltage & current
@@ -86,55 +86,52 @@ int16_t low_pass_filter_calc(int16_t input, int16_t prev_output)
 
 void calculate_signal_amplitude(system_data *_adc_data1)
 {
-    double sum_sq_adc_Volt = 0.0, sum_sq_AFC_adc_Volt = 0.0;
-    double sum_sq_adc_Current = 0.0, sum_sq_AFC_adc_Current = 0.0;
-    double sum_adc_Volt = 0.0, sum_AFC_adc_Volt = 0.0;
-    double sum_adc_Current = 0.0, sum_AFC_adc_Current = 0.0;
+    // double sum_sq_adc_Volt = 0.0, sum_sq_AFC_adc_Volt = 0.0;
+    // double sum_sq_adc_Current = 0.0, sum_sq_AFC_adc_Current = 0.0;
+    double sum_sq_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    double rms_val_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    // double amp_val_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     int n = DMA_ADC_data_length;
 
-    // Compute DC offset for each channel
-    for (int i = 0; i < n; i++)
-    {
-        sum_adc_Volt += adc_raw_data[pos_volt_a][i];
-        sum_AFC_adc_Volt += adc_raw_data[pos_volt_AFC_b][i];
-        sum_adc_Current += adc_raw_data[pos_amp_b][i];
-        sum_AFC_adc_Current += adc_raw_data[pos_amp_AFC_b][i];
-    }
-    double offset_Volt = sum_adc_Volt / n;
-    double offset_AFC_Volt = sum_AFC_adc_Volt / n;
-    double offset_Current = sum_adc_Current / n;
-    double offset_AFC_Current = sum_AFC_adc_Current / n;
+    double offset_PA0 = 2275;     // zero_pad_adc_PA[0]
+    double offset_PA1_AFC = 1861; // zero_pad_adc_PA[1]
 
     // Remove DC offset and accumulate squared deviations
-    for (int i = 0; i < n; i++)
+    for (int _row = 0; _row < 8; _row++)
     {
-        double val_Volt = adc_raw_data[pos_volt_a][i] - offset_Volt;
-        double val_AFC_Volt = adc_raw_data[pos_volt_AFC_a][i] - offset_AFC_Volt;
-        double val_Current = adc_raw_data[pos_amp_b][i] - offset_Current;
-        double val_AFC_Current = adc_raw_data[pos_amp_AFC_b][i] - offset_AFC_Current;
+        for (int _col = 0; _col < n; _col++)
+        {
+            double _val_sq = 0;
+            if (_row % 2 == 0)
+                _val_sq = adc_raw_data[_row][_col] - offset_PA0;
+            else
+                _val_sq = adc_raw_data[_row][_col] - offset_PA1_AFC;
 
-        sum_sq_adc_Volt += val_Volt * val_Volt;
-        sum_sq_AFC_adc_Volt += val_AFC_Volt * val_AFC_Volt;
-        sum_sq_adc_Current += val_Current * val_Current;
-        sum_sq_AFC_adc_Current += val_AFC_Current * val_AFC_Current;
+            sum_sq_adc[_row] += _val_sq * _val_sq;
+        }
+        // Calculate RMS
+        rms_val_adc[_row] = sqrt(sum_sq_adc[_row] / n);
+        // Peak amplitude = RMS * sqrt(2)
+        // amp_val_adc[_row] = rms_val_adc[_row] * sqrt(2.0);
     }
 
-    // Calculate RMS and convert to peak amplitude assuming sine wave: amplitude = RMS * sqrt(2)
-    double rms_Volt = sqrt(sum_sq_adc_Volt / n);
-    double rms_AFC_Volt = sqrt(sum_sq_AFC_adc_Volt / n);
-    double rms_Current = sqrt(sum_sq_adc_Current / n);
-    double rms_AFC_Current = sqrt(sum_sq_AFC_adc_Current / n);
+    // Automatic Gain Selection
+    // 1. Set Default as Gain A
+    volt_gain_sel = 0;
+    amp_gain_sel = 0;
 
-    double amp_Volt = rms_Volt * sqrt(2.0);
-    double amp_AFC_Volt = rms_AFC_Volt * sqrt(2.0);
-    double amp_Current = rms_Current * sqrt(2.0);
-    double amp_AFC_Current = rms_AFC_Current * sqrt(2.0);
+    // 2. Check the gain value
+    int16_t _threshold = 50;
+    if (rms_val_adc[volt_gain_sel * 4] < _threshold)
+        volt_gain_sel = 1;
+    if (rms_val_adc[(amp_gain_sel * 4) + 2] < _threshold)
+        amp_gain_sel = 1;
 
     // Update system_data struct with amplitude after conversion
-    _adc_data1->rms_voltage = adc_volt_convert((float)amp_Volt);
-    _adc_data1->rms_AFC_volt = adc_volt_convert((float)amp_AFC_Volt);
-    _adc_data1->rms_current = adc_volt_convert((float)amp_Current);
-    _adc_data1->rms_AFC_current = adc_volt_convert((float)amp_AFC_Current);
+    _adc_data1->rms_voltage = adc_volt_convert((float)rms_val_adc[volt_gain_sel * 4]);
+    _adc_data1->rms_AFC_volt = adc_volt_convert((float)rms_val_adc[volt_gain_sel * 4 + 1]);
+    _adc_data1->rms_current = adc_volt_convert((float)rms_val_adc[(amp_gain_sel * 4) + 2]);
+    _adc_data1->rms_AFC_current = adc_volt_convert((float)rms_val_adc[(amp_gain_sel * 4) + 3]);
 }
 
 float adc_volt_convert(int16_t raw_adc)
@@ -223,7 +220,10 @@ float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _ph
     else if (_mode == 2)
     { // Capacitance: C = 1/(ωX), convert to nanoFarads
         float capacitance = 1.0f / (omega * reactance);
-        return capacitance * 1e7f;
+        if (amp_gain_sel)
+            return capacitance * 1e7f;
+        else
+            return capacitance * 1e9f;
     }
     else if (_mode == 3)
     { // ESR: real part of the impedance

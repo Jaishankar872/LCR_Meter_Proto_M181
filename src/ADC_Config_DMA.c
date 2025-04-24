@@ -34,7 +34,7 @@ TIM_HandleTypeDef htim2, htim3;
 
 // Private Variable Declaration
 uint32_t raw_adc_DMA_data[DMA_ADC_data_length];
-uint32_t zero_padding_raw_adc_DMA_data[2];
+uint32_t zero_pad_adc_raw[2];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
 uint8_t measure_mode_flag = 0;
@@ -308,8 +308,8 @@ void separate_ADC_CH_from_DMA()
     }
     else
     {
-        zero_pad_adc_raw_data[0] = (uint16_t)(zero_padding_raw_adc_DMA_data[1] & 0xFFFF); // Extract PA0 data
-        zero_pad_adc_raw_data[1] = (uint16_t)(zero_padding_raw_adc_DMA_data[1] >> 16);    // Extract PA1 data
+        zero_pad_adc_PA[0] = (uint16_t)(zero_pad_adc_raw[1] & 0xFFFF); // Extract PA0 data
+        zero_pad_adc_PA[1] = (uint16_t)(zero_pad_adc_raw[1] >> 16);    // Extract PA1 data
     }
     // Transfer the Status After Completing
     adc_read_complete_flag_DMA = measure_mode_flag;
@@ -327,7 +327,7 @@ void Start_ADC_Conversion()
     if (_manual_read_ADC_ != 1)
         HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
     else
-        HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)zero_padding_raw_adc_DMA_data, 2);
+        HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)zero_pad_adc_raw, 2);
 }
 
 void Stop_ADC_Conversion()

@@ -148,19 +148,27 @@ void system_loop()
 
 void zero_padding_value()
 {
-  manual_ctrl_DAC(127);
+  int16_t _adc_avg_data[2] = {0, 0};
+  int16_t _length = 10, _each_delay = 60;
 
-  for (int n = 0; n < 10; n++)
+  manual_ctrl_DAC(127);
+  HAL_Delay(_each_delay);
+  manual_read_ADC(); // Just call, skip inital buffer [Revisit Again....]
+  HAL_Delay(_each_delay);
+
+  for (int n = 0; n < _length; n++)
   {
     manual_read_ADC();
-    // printf("%d \r\n", n + 1);
-    // printf("%d - %.3f, %d - %.3f\r\n", zero_pad_adc_raw_data[0], adc_volt_convert(zero_pad_adc_raw_data[0]),
-    //        zero_pad_adc_raw_data[1], adc_volt_convert(zero_pad_adc_raw_data[1]));
-    HAL_Delay(100);
-  }
+    HAL_Delay(_each_delay);
 
-  printf("%d - %.3f, %d - %.3f\r\n", zero_pad_adc_raw_data[0], adc_volt_convert(zero_pad_adc_raw_data[0]),
-         zero_pad_adc_raw_data[1], adc_volt_convert(zero_pad_adc_raw_data[1]));
+    _adc_avg_data[0] += zero_pad_adc_PA[0];
+    _adc_avg_data[1] += zero_pad_adc_PA[1];
+  }
+  zero_pad_adc_PA[0] = _adc_avg_data[0] / _length;
+  zero_pad_adc_PA[1] = _adc_avg_data[1] / _length;
+
+  printf("Average \r\n %d - %.3f, %d - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
+         zero_pad_adc_PA[1], adc_volt_convert(zero_pad_adc_PA[1]));
   release_manual_read_ADC();
   release_manual_ctrl_DAC();
 }

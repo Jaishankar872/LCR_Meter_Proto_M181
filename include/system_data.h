@@ -5,7 +5,7 @@
 #include <stdint.h> // For uint8_t, uint16_t, etc.
 
 // Firmware Version Global Variable
-#define fw_version 0.22
+#define fw_version 0.23
 
 // Define the struct
 typedef struct system_data
@@ -43,7 +43,12 @@ extern system_data process_data;
 #define pos_amp_b 6
 #define pos_amp_AFC_b 7
 
+// Gain Selector Variable
+// Gain A - 0
+// Gain B - 1
+int8_t volt_gain_sel, amp_gain_sel;
+
 int16_t adc_raw_data[8][DMA_ADC_data_length];
-int16_t zero_pad_adc_raw_data[2];
+int16_t zero_pad_adc_PA[2];
 
 #endif // SYSTEM_DATA_H
