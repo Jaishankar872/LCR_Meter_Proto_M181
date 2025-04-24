@@ -34,11 +34,12 @@ TIM_HandleTypeDef htim2, htim3;
 
 // Private Variable Declaration
 uint32_t raw_adc_DMA_data[DMA_ADC_data_length];
+uint32_t zero_padding_raw_adc_DMA_data[2];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
 uint8_t measure_mode_flag = 0;
 uint8_t GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
-volatile uint8_t _VI_measure_mode = 1;
+volatile uint8_t _VI_measure_mode = 1, _manual_read_ADC_ = 0;
 
 // Private Function Declaration
 void Timer3_Init_ADC();
@@ -46,7 +47,7 @@ void DMA_Init_ADC();
 void separate_ADC_CH_from_DMA();
 void Start_ADC_Conversion();
 void Stop_ADC_Conversion();
-void separate_adc_max_value();
+// void separate_adc_max_value();
 
 void GPIO_Init_VI_GS_Pin();
 void Timer2_Init_VI_switch(void);
@@ -71,6 +72,28 @@ void setup_ADC_with_DMA()
     Start_Timer_VI_switch();
 
     set_ADC_Measure_window(1000); // 1 KHz
+}
+
+// Manual Control for Zero padding
+void manual_read_ADC()
+{
+    // Note: Don't call this function directly,
+    // setup_ADC_with_DMA() need to call atleast once
+    // HAL_TIM_Base_Stop(&htim3); // Start the Timer3
+
+    HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, LOW);
+    HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, HIGH);
+    _manual_read_ADC_ = 1;
+    Start_ADC_Conversion();
+}
+
+void release_manual_read_ADC()
+{
+    // Release by Windows Reset the following flag
+    _manual_read_ADC_ = 0;              // Release to normal mode
+    adc_read_complete_flag_DMA = 0;     // Re-Capture the Reading
+    _VI_measure_mode = 1;               // Reset VI Switch Position
+    set_measure_mode(_VI_measure_mode); // GPIO State
 }
 
 void Timer3_Init_ADC()
@@ -272,13 +295,21 @@ void separate_ADC_CH_from_DMA()
 {
     int16_t PA0_data_temp = 0, PA1_data_temp = 0;
 
-    for (int i = 0; i < DMA_ADC_data_length; i++)
+    if (_manual_read_ADC_ != 1)
     {
-        PA0_data_temp = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
-        PA1_data_temp = (uint16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
+        for (int i = 0; i < DMA_ADC_data_length; i++)
+        {
+            PA0_data_temp = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
+            PA1_data_temp = (uint16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
 
-        adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
-        adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
+            adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
+            adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
+        }
+    }
+    else
+    {
+        zero_pad_adc_raw_data[0] = (uint16_t)(zero_padding_raw_adc_DMA_data[1] & 0xFFFF); // Extract PA0 data
+        zero_pad_adc_raw_data[1] = (uint16_t)(zero_padding_raw_adc_DMA_data[1] >> 16);    // Extract PA1 data
     }
     // Transfer the Status After Completing
     adc_read_complete_flag_DMA = measure_mode_flag;
@@ -293,7 +324,10 @@ void Start_ADC_Conversion()
 {
     // Restart the ADC
     HAL_ADC_Start(&hadc2); // Start ADC2 First
-    HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+    if (_manual_read_ADC_ != 1)
+        HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+    else
+        HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)zero_padding_raw_adc_DMA_data, 2);
 }
 
 void Stop_ADC_Conversion()

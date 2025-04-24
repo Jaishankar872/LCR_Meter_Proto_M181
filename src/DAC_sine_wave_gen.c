@@ -41,7 +41,7 @@ extern void Error_Handler(void);
 
 void sine_wave_setup()
 {
-    DAC_pinMode_B0_B7(0x2);
+    DAC_pinMode_B0_B7(0x2); // Set as output mode(0x2 Hex)
     generate_sine_wave_data(); // Calling Sine data generator
     timer1_setup();
     set_sine_wave_frequency(1000); // Set Frequency
@@ -156,4 +156,14 @@ void On_Timer1_Interrupt()
 void DAC_analogWrite_B0_B7(uint8_t _dat1)
 {
     GPIOB->ODR = (GPIOB->ODR & 0xFFFFFF00) | (_dat1);
+}
+
+void manual_ctrl_DAC(uint8_t _dac_output) // DAC Supports input from [0 to 255] only
+{
+    HAL_TIM_Base_Stop_IT(&htim1); // Stop Timer 1 Interrupt
+    DAC_analogWrite_B0_B7(_dac_output);
+}
+
+void release_manual_ctrl_DAC(){
+    HAL_TIM_Base_Start_IT(&htim1); // Stop Timer 1 Interrupt
 }

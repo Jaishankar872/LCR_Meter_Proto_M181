@@ -21,6 +21,7 @@
 // Public Function Declaration
 void ssd1306_display_sofwire_Init(void);
 void bootup_screen(uint8_t _boot_up_display_time);
+void clear_full_display();
 void screen1_home_print(system_data _display);
 
 #endif // __M181_DISPLAY_SOFTWIRE_H

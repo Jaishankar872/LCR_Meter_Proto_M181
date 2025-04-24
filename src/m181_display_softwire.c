@@ -72,6 +72,10 @@ void bootup_screen(uint8_t _boot_up_display_time)
 
     ssd1306_UpdateScreen();
     HAL_Delay(_boot_up_display_time * 1000); // Seconds
+}
+
+void clear_full_display()
+{
     // Clear the display
     ssd1306_Fill(Black);
     ssd1306_UpdateScreen();

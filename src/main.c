@@ -19,8 +19,8 @@
 #include "Buttons_and_LED.h"
 #include "DSP_data.h"
 
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim3;
+// TIM_HandleTypeDef htim2;
+// TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
@@ -29,6 +29,7 @@ void system_setup();
 void system_loop();
 void SystemClock_Config(void);
 static void setup_UART(void);
+void zero_padding_value();
 
 // Private Variable Declaration
 // Refer the file name "system_data.h"
@@ -72,12 +73,18 @@ void system_setup()
 
   // Display Initialization
   ssd1306_display_sofwire_Init();
-  bootup_screen(4); // Wait for 4 Seconds
+
+  // Bootup Screen Time - 4 Seconds
+  bootup_screen(1); // Wait for 1 Seconds
+  // Zero-Padding
+  zero_padding_value(); // Wait for +1 Seconds for Bootup Screen
+  HAL_Delay(2000);      // Wait for +2 Seconds for Bootup Screen
+  clear_full_display();
 
   // Default: Set-> Update -> Display ** Must required
   // Set
   process_data.set_freq = 1000;        // Default frequency
-  process_data.uart_all_print_DSO = 1; // Default Mode
+  process_data.uart_all_print_DSO = 0; // Default Mode
   process_data.LCR_Mode = 2;           // Default Mode - Capacitance
   // Update
   set_sine_wave_frequency(process_data.set_freq);
@@ -106,7 +113,7 @@ void system_loop()
   {
     // First Process the data
     // ->Display value
-    process_data_via_DSP(&process_data);
+    // process_data_via_DSP(&process_data);
 
     // Update the display
     screen1_home_print(process_data);
@@ -128,6 +135,7 @@ void system_loop()
       }
     }
     // Restart the Data capture
+    process_data_via_DSP(&process_data);
     ADC_recapture_data();
     HAL_Delay(800); // Pause for a moment
   }
@@ -136,6 +144,25 @@ void system_loop()
     // Update the display
     screen1_home_print(process_data);
   }
+}
+
+void zero_padding_value()
+{
+  manual_ctrl_DAC(127);
+
+  for (int n = 0; n < 10; n++)
+  {
+    manual_read_ADC();
+    // printf("%d \r\n", n + 1);
+    // printf("%d - %.3f, %d - %.3f\r\n", zero_pad_adc_raw_data[0], adc_volt_convert(zero_pad_adc_raw_data[0]),
+    //        zero_pad_adc_raw_data[1], adc_volt_convert(zero_pad_adc_raw_data[1]));
+    HAL_Delay(100);
+  }
+
+  printf("%d - %.3f, %d - %.3f\r\n", zero_pad_adc_raw_data[0], adc_volt_convert(zero_pad_adc_raw_data[0]),
+         zero_pad_adc_raw_data[1], adc_volt_convert(zero_pad_adc_raw_data[1]));
+  release_manual_read_ADC();
+  release_manual_ctrl_DAC();
 }
 
 /**
