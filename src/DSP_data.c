@@ -42,17 +42,21 @@ void process_data_via_DSP(system_data *_adc_data)
 {
     calculate_signal_amplitude(_adc_data);
     _adc_data->impedance = _adc_data->rms_voltage / _adc_data->rms_current;
+    if (volt_gain_sel)
+        _adc_data->impedance /= 101;
+    if (amp_gain_sel)
+        _adc_data->impedance *= 101;
 
     _phase_offset_array_index = 0;
-    for (int j = 1; j < 8; j++)
+    for (int _row = 0; _row < 8; _row++)
     {
-        for (int i = 1; i < DMA_ADC_data_length; i++)
+        for (int _col = 1; _col < DMA_ADC_data_length; _col++)
         {
             // Low pass filter
-            adc_raw_data[j][i] = low_pass_filter_calc(adc_raw_data[j][i], adc_raw_data[j][i - 1]);
+            adc_raw_data[_row][_col] = low_pass_filter_calc(adc_raw_data[_row][_col], adc_raw_data[_row][_col - 1]);
         }
     }
-    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[(amp_gain_sel * 4)], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length);                    // Phase calculation for voltage
+    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[(amp_gain_sel * 4)], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length);            // Phase calculation for voltage
     _adc_data->current_phase = fabsf(phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 3], _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
     _adc_data->current_phase -= 180;
 
@@ -67,7 +71,7 @@ void process_data_via_DSP(system_data *_adc_data)
         _adc_data->capacitance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // Capacitance
     else if (_adc_data->LCR_Mode == 3)
     {
-        _adc_data->resistance = LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // ESR
+        _adc_data->resistance = _adc_data->impedance; // LCR_calculation(_adc_data->LCR_Mode, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // ESR
         _adc_data->esr = 0;
         _adc_data->tan_delta = 0;
     }
@@ -93,9 +97,6 @@ void calculate_signal_amplitude(system_data *_adc_data1)
     // double amp_val_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     int n = DMA_ADC_data_length;
 
-    double offset_PA0 = 2275;     // zero_pad_adc_PA[0]
-    double offset_PA1_AFC = 1861; // zero_pad_adc_PA[1]
-
     // Remove DC offset and accumulate squared deviations
     for (int _row = 0; _row < 8; _row++)
     {
@@ -103,11 +104,12 @@ void calculate_signal_amplitude(system_data *_adc_data1)
         {
             double _val_sq = 0;
             if (_row % 2 == 0)
-                _val_sq = adc_raw_data[_row][_col] - offset_PA0;
+                _val_sq = adc_raw_data[_row][_col];
             else
-                _val_sq = adc_raw_data[_row][_col] - offset_PA1_AFC;
+                _val_sq = adc_raw_data[_row][_col];
 
             sum_sq_adc[_row] += _val_sq * _val_sq;
+            adc_raw_data[_row][_col] = _val_sq;
         }
         // Calculate RMS
         rms_val_adc[_row] = sqrt(sum_sq_adc[_row] / n);
@@ -220,10 +222,7 @@ float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _ph
     else if (_mode == 2)
     { // Capacitance: C = 1/(ωX), convert to nanoFarads
         float capacitance = 1.0f / (omega * reactance);
-        if (amp_gain_sel)
-            return capacitance * 1e7f;
-        else
-            return capacitance * 1e9f;
+        return capacitance * 1e9f;
     }
     else if (_mode == 3)
     { // ESR: real part of the impedance

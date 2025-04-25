@@ -33,8 +33,8 @@ TIM_HandleTypeDef htim2, htim3;
 // Clean the Code Before Build the code
 
 // Private Variable Declaration
-uint32_t raw_adc_DMA_data[DMA_ADC_data_length];
-uint32_t zero_pad_adc_raw[2];
+int32_t raw_adc_DMA_data[DMA_ADC_data_length];
+int32_t zero_pad_adc_raw[2];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
 uint8_t measure_mode_flag = 0;
@@ -299,8 +299,12 @@ void separate_ADC_CH_from_DMA()
     {
         for (int i = 0; i < DMA_ADC_data_length; i++)
         {
-            PA0_data_temp = (uint16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
-            PA1_data_temp = (uint16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
+            PA0_data_temp = (int16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
+            PA1_data_temp = (int16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
+
+            // Remove offset value
+            PA0_data_temp -= zero_pad_adc_PA[0];
+            PA1_data_temp -= zero_pad_adc_PA[1];
 
             adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
             adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
@@ -308,8 +312,8 @@ void separate_ADC_CH_from_DMA()
     }
     else
     {
-        zero_pad_adc_PA[0] = (uint16_t)(zero_pad_adc_raw[1] & 0xFFFF); // Extract PA0 data
-        zero_pad_adc_PA[1] = (uint16_t)(zero_pad_adc_raw[1] >> 16);    // Extract PA1 data
+        zero_pad_adc_PA[0] = (int16_t)(zero_pad_adc_raw[1] & 0xFFFF); // Extract PA0 data
+        zero_pad_adc_PA[1] = (int16_t)(zero_pad_adc_raw[1] >> 16);    // Extract PA1 data
     }
     // Transfer the Status After Completing
     adc_read_complete_flag_DMA = measure_mode_flag;

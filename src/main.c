@@ -148,29 +148,37 @@ void system_loop()
 
 void zero_padding_value()
 {
-  int16_t _adc_avg_data[2] = {0, 0};
-  int16_t _length = 10, _each_delay = 60;
-
-  manual_ctrl_DAC(127);
-  HAL_Delay(_each_delay);
-  manual_read_ADC(); // Just call, skip inital buffer [Revisit Again....]
-  HAL_Delay(_each_delay);
-
-  for (int n = 0; n < _length; n++)
+  if (0)
   {
-    manual_read_ADC();
+    int16_t _adc_avg_data[2] = {0, 0};
+    int16_t _length = 10, _each_delay = 60;
+
+    manual_ctrl_DAC(127);
+    HAL_Delay(_each_delay);
+    manual_read_ADC(); // Just call, skip inital buffer [Revisit Again....]
     HAL_Delay(_each_delay);
 
-    _adc_avg_data[0] += zero_pad_adc_PA[0];
-    _adc_avg_data[1] += zero_pad_adc_PA[1];
-  }
-  zero_pad_adc_PA[0] = _adc_avg_data[0] / _length;
-  zero_pad_adc_PA[1] = _adc_avg_data[1] / _length;
+    for (int n = 0; n < _length; n++)
+    {
+      manual_read_ADC();
+      HAL_Delay(_each_delay);
 
-  printf("Average \r\n %d - %.3f, %d - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
-         zero_pad_adc_PA[1], adc_volt_convert(zero_pad_adc_PA[1]));
-  release_manual_read_ADC();
-  release_manual_ctrl_DAC();
+      _adc_avg_data[0] += zero_pad_adc_PA[0];
+      _adc_avg_data[1] += zero_pad_adc_PA[1];
+    }
+    zero_pad_adc_PA[0] = _adc_avg_data[0] / _length;
+    zero_pad_adc_PA[1] = _adc_avg_data[1] / _length;
+
+    printf("Average \r\n %d - %.3f, %d - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
+           zero_pad_adc_PA[1], adc_volt_convert(zero_pad_adc_PA[1]));
+    release_manual_read_ADC();
+    release_manual_ctrl_DAC();
+  }
+  else
+  {
+    zero_pad_adc_PA[0] = 2275; // V/I offset value
+    zero_pad_adc_PA[1] = 1861; // AFC Pin offset value
+  }
 }
 
 /**
