@@ -18,10 +18,11 @@ TIM_HandleTypeDef htim1;
 uint16_t _timer1_prescaler = 2;
 
 // Private Variables
-int sine_data[100];
-uint16_t _no_of_sample_per_sine = 100;
+#define _no_of_sample_per_sine 50
+int16_t sine_data[_no_of_sample_per_sine];
 uint16_t DAC_resolution = 256; // 2^8=256;
-int _pos_sine_data = 0;
+int16_t _pos_sine_data = 0;
+uint8_t att_percent = 0;
 
 // Private Function Declaration
 void generate_sine_wave_data();
@@ -41,7 +42,7 @@ extern void Error_Handler(void);
 
 void sine_wave_setup()
 {
-    DAC_pinMode_B0_B7(0x2); // Set as output mode(0x2 Hex)
+    DAC_pinMode_B0_B7(0x2);    // Set as output mode(0x2 Hex)
     generate_sine_wave_data(); // Calling Sine data generator
     timer1_setup();
     set_sine_wave_frequency(1000); // Set Frequency
@@ -142,11 +143,27 @@ void set_sine_wave_frequency(uint16_t _set_frequency)
             Error_Handler();
         }
     }
+
+    // Default Attenuation
+    if (_set_frequency == 100)
+        set_DAC_out_factor(30);
+    else if (_set_frequency == 500)
+        set_DAC_out_factor(15);
+    else if (_set_frequency == 1000)
+        set_DAC_out_factor(0);
+}
+
+void set_DAC_out_factor(uint8_t _percent)
+{
+    att_percent = _percent;
 }
 
 void On_Timer1_Interrupt()
 {
-    DAC_analogWrite_B0_B7(sine_data[_pos_sine_data]);
+    uint16_t _raw = (uint16_t)(sine_data[_pos_sine_data] * (100 - att_percent)) + 50;
+    uint8_t _out_d = (uint8_t)(_raw / 100);
+    DAC_analogWrite_B0_B7(_out_d);
+
     if (_pos_sine_data >= (_no_of_sample_per_sine - 1))
         _pos_sine_data = 0;
     else
@@ -164,6 +181,7 @@ void manual_ctrl_DAC(uint8_t _dac_output) // DAC Supports input from [0 to 255] 
     DAC_analogWrite_B0_B7(_dac_output);
 }
 
-void release_manual_ctrl_DAC(){
+void release_manual_ctrl_DAC()
+{
     HAL_TIM_Base_Start_IT(&htim1); // Stop Timer 1 Interrupt
 }
