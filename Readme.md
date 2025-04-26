@@ -1,11 +1,19 @@
 # Goal
    To Develop only the Firmware for M181 LCR Meter made by JyeTech. Hope to provide understanding in basics of LCR Meter.
 
-**Note**: Still this firmware under development.
-
 ## Hardware - M181 LCR Meter 
 - Official product page link [here](https://jyetech.com/m181-lcr-meter/)
 - I have purchased from Banggood, buying link is [here](https://www.banggood.in/Jyetech-M181-LCR-Meter-18101K-DIY-Kit-100Hz-1KHz-Test-Frequency-High-precision-Small-Value-Inductance-Resistance-and-Capacitance-Measurement-Module-reviews-p2017117.html)
+
+**Note**: Still this firmware under development.
+# Tasks to be completed
+- [x] Zero Padding function (ADC offset)
+- [ ] Auto calibration option
+- [ ] Improve the phase difference calculation
+- [ ] Fix issue in missing to capture the button press input
+- [ ] Correct the current waveform crop issue in auto gain selection. 
+- [ ] Add option for Parallel calculation ($C_p$,$L_p$) 
+
 
 # System Overview
 ## MCU programming

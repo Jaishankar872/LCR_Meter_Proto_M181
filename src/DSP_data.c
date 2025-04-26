@@ -42,10 +42,14 @@ void process_data_via_DSP(system_data *_adc_data)
 {
     calculate_signal_amplitude(_adc_data);
     _adc_data->impedance = _adc_data->rms_voltage / _adc_data->rms_current;
+
+    //Applying the correction Factor - Manually
     if (volt_gain_sel)
         _adc_data->impedance /= 101;
     if (amp_gain_sel)
-        _adc_data->impedance *= 101;
+        _adc_data->impedance *= (101*1.017);
+    else
+        _adc_data->impedance *= 0.874;
 
     _phase_offset_array_index = 0;
     for (int _row = 0; _row < 8; _row++)
