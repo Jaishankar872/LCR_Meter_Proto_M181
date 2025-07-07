@@ -224,7 +224,6 @@ void ADC_Init_PA0_PA1()
 
 void DMA_Init_ADC()
 {
-
     /* DMA controller clock enable */
     __HAL_RCC_DMA1_CLK_ENABLE();
 
@@ -232,10 +231,6 @@ void DMA_Init_ADC()
     /* DMA1_Channel1_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0); // 1. PreemptPriority = 0, SubPriority = 0
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);         // 1. ADC Data
-
-    /* DMA1_Channel4_IRQn interrupt configuration */
-    // HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0); // PreemptPriority = 5, SubPriority = 0
-    // HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn); // 6. UART DMA
 }
 
 void set_ADC_Measure_window(uint16_t _measure_frequency)

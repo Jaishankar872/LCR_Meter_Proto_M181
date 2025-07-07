@@ -6,6 +6,7 @@
  ******************************************************************************
  * @attention
  * Developed by: Jaishankar M
+ * Credits: OneOfEleven
  ******************************************************************************
  */
 
@@ -28,6 +29,8 @@ DMA_HandleTypeDef hdma_usart1_tx;
 void system_setup();
 void system_loop();
 void SystemClock_Config(void);
+
+static void DMA_Init_UART();
 static void setup_UART(void);
 void zero_padding_value();
 
@@ -39,7 +42,18 @@ system_data process_data; // From file name "system_data.h"
 // [Temp]Redirect printf to UART
 int _write(int file, char *ptr, int len)
 {
-  HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 1000);
+  #ifdef MATLAB_serial_enable
+  // HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 1000);
+  const uint32_t tick = HAL_GetTick();
+		while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) && (HAL_GetTick() - tick) < 100)
+			__WFI();    // wait until next interrupt occurs
+  #else
+  		// start sending using DMA mode
+		// wait for a maximum of 100ms for the send to start
+		const uint32_t tick = HAL_GetTick();
+		while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) && (HAL_GetTick() - tick) < 100)
+			__WFI();    // wait until next interrupt occurs
+  #endif
   return len;
 }
 
@@ -69,6 +83,7 @@ void system_setup()
   setup_buttons_and_LED();
 
   // UART Initialization
+  DMA_Init_UART();
   setup_UART();
 
   // Display Initialization
@@ -84,7 +99,7 @@ void system_setup()
   // Default: Set-> Update -> Display ** Must required
   // Set
   process_data.set_freq = 1000;        // Default frequency
-  process_data.uart_all_print_DSO = 0; // Default Mode
+  process_data.uart_all_print_DSO = 1; // Default Mode
   process_data.LCR_Mode = 2;           // Default Mode - Capacitance
   // Update
   set_sine_wave_frequency(process_data.set_freq);
@@ -119,6 +134,7 @@ void system_loop()
     screen1_home_print(process_data);
     if (process_data.uart_all_print_DSO)
     {
+      #ifdef MATLAB_serial_enable
       const int _print_delay = 5; // Milli Seconds
       // printf("Via DMA interrupt Callback function\n");
       for (int i = 0; i < DMA_ADC_data_length; i++)
@@ -133,6 +149,35 @@ void system_loop()
         }
         HAL_Delay(_print_delay);
       }
+      #else
+      // send as binary (fastest)
+
+					// TX buffer
+					#pragma pack(push, 1)
+					uint8_t buf[sizeof(uint32_t) + sizeof(adc_raw_data)] = {0};
+					#pragma pack(pop)
+
+					unsigned int index = 0;
+
+					{	// 1st word = packet marker
+						buf[index++] = (uint8_t)(PACKET_MARKER >>  0);
+						buf[index++] = (uint8_t)(PACKET_MARKER >>  8);
+						buf[index++] = (uint8_t)(PACKET_MARKER >> 16);
+						buf[index++] = (uint8_t)(PACKET_MARKER >> 24);
+					}
+
+					{	// followed by all the samples
+						const unsigned int size = sizeof(adc_raw_data);
+						memcpy(&buf[index], &adc_raw_data, size);
+						index += size;
+					}
+
+					{	// start sending the packet (wait here for upto 200ms until it does start)
+						const uint32_t tick = HAL_GetTick();
+						while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, buf, index) && (HAL_GetTick() - tick) < 200)
+							__WFI();    // wait until next interrupt occurs
+					}
+      #endif
     }
     // Restart the Data capture
     process_data_via_DSP(&process_data);
@@ -229,7 +274,7 @@ void SystemClock_Config(void)
 static void setup_UART(void)
 {
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = UART_BAUDRATE;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
@@ -240,6 +285,17 @@ static void setup_UART(void)
   {
     Error_Handler();
   }
+}
+
+static void DMA_Init_UART()
+{
+
+    /* DMA controller clock enable */
+    __HAL_RCC_DMA1_CLK_ENABLE();
+
+    /* DMA1_Channel4_IRQn interrupt configuration */
+    HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0); // PreemptPriority = 5, SubPriority = 0
+    HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn); // 6. UART DMA
 }
 
 void Error_Handler(void)

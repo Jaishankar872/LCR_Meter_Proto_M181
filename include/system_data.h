@@ -5,7 +5,7 @@
 #include <stdint.h> // For uint8_t, uint16_t, etc.
 
 // Firmware Version Global Variable
-#define fw_version 0.24
+#define fw_version 0.25
 
 // Define the struct
 typedef struct system_data
@@ -23,7 +23,14 @@ typedef struct system_data
     uint8_t adc_measure_status; // 1 -> Start Voltage, 2 -> Start Current, 3 -> Both are Ready
 } system_data;
 
-// Declare the global variable
+// UART Config
+#define MATLAB_serial_enable // Comment to Enable Windows GUI
+
+//#define UART_BAUDRATE              115200
+#define UART_BAUDRATE                230400
+#define PACKET_MARKER                0x19621996
+
+// ADC Config
 extern system_data process_data;
 #define DMA_ADC_data_length 128 // n=6; Selected Length is 2^n
 #define ADC_SAMPLE_RATE 64      // 32 samples per cycle
