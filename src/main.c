@@ -42,18 +42,14 @@ system_data process_data; // From file name "system_data.h"
 // [Temp]Redirect printf to UART
 int _write(int file, char *ptr, int len)
 {
-  #ifdef MATLAB_serial_enable
   // HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 1000);
+  
+  // start sending using DMA mode
   const uint32_t tick = HAL_GetTick();
+  // wait for a maximum of 100ms for the send to start
 		while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) && (HAL_GetTick() - tick) < 100)
 			__WFI();    // wait until next interrupt occurs
-  #else
-  		// start sending using DMA mode
-		// wait for a maximum of 100ms for the send to start
-		const uint32_t tick = HAL_GetTick();
-		while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)ptr, len) && (HAL_GetTick() - tick) < 100)
-			__WFI();    // wait until next interrupt occurs
-  #endif
+
   return len;
 }
 

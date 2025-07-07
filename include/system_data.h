@@ -10,21 +10,37 @@
 // Define the struct
 typedef struct system_data
 {
-    uint8_t hold_btn, sp_btn, rcl_btn;
-    uint16_t set_freq;
-    uint8_t led_state;
-    int8_t VI_measure_mode;
-    float rms_voltage, rms_AFC_volt, rms_current, rms_AFC_current;
-    float voltage_phase, current_phase, VI_phase;
-    float capacitance, inductance, resistance;
-    int8_t unit_capacitance, unit_inductance, unit_resistance, unit_esr;
-    float impedance, esr, tan_delta, QF;
-    uint8_t uart_all_print_DSO, LCR_Mode;
-    uint8_t adc_measure_status; // 1 -> Start Voltage, 2 -> Start Current, 3 -> Both are Ready
+	uint8_t  hold_btn;
+	uint8_t  sp_btn;
+	uint8_t  rcl_btn;
+	uint16_t set_freq;
+	uint8_t  led_state;
+	int8_t   VI_measure_mode;
+	float    rms_voltage;
+	float    rms_AFC_volt;
+	float    rms_current;
+	float    rms_AFC_current;
+	float    voltage_phase;
+	float    current_phase;
+	float    VI_phase;
+	float    capacitance;
+	float    inductance;
+	float    resistance;
+	int      unit_capacitance;
+	int      unit_inductance;
+	int      unit_resistance;
+	int      unit_esr;
+	float    impedance;
+	float    esr;
+	float    tan_delta;
+	float    QF;
+	uint8_t  uart_all_print_DSO;
+	uint8_t  LCR_Mode;
+	uint8_t  adc_measure_status;    // 1 -> Start Voltage, 2 -> Start Current, 3 -> Both are Ready
 } system_data;
 
 // UART Config
-#define MATLAB_serial_enable // Comment to Enable Windows GUI
+// #define MATLAB_serial_enable // Comment to Enable Windows GUI
 
 //#define UART_BAUDRATE              115200
 #define UART_BAUDRATE                230400
