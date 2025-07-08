@@ -71,7 +71,7 @@ extern system_data process_data;
 // Gain B - 1
 int8_t volt_gain_sel, amp_gain_sel;
 
-int16_t adc_raw_data[8][DMA_ADC_data_length];
-int16_t zero_pad_adc_PA[2];
+float adc_raw_data[8][DMA_ADC_data_length];
+float zero_pad_adc_PA[2];
 
 #endif // SYSTEM_DATA_H

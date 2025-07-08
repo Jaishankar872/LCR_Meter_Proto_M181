@@ -139,9 +139,9 @@ void system_loop()
         for (int col = 0; col < 8; col++)
         {
           if (col != 7)
-            printf("%d,", adc_raw_data[col][i]);
+            printf("%.1f,", adc_raw_data[col][i]);
           else
-            printf("%d\r\n", adc_raw_data[col][i]);
+            printf("%.1f\r\n", adc_raw_data[col][i]);
         }
         HAL_Delay(_print_delay);
       }
@@ -210,7 +210,7 @@ void zero_padding_value()
     zero_pad_adc_PA[0] = _adc_avg_data[0] / _length;
     zero_pad_adc_PA[1] = _adc_avg_data[1] / _length;
 
-    printf("Average \r\n %d - %.3f, %d - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
+    printf("Average \r\n %.1f - %.3f, %.1f - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
            zero_pad_adc_PA[1], adc_volt_convert(zero_pad_adc_PA[1]));
     release_manual_read_ADC();
     release_manual_ctrl_DAC();
