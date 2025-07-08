@@ -19,6 +19,7 @@
 #include "ADC_Config_DMA.h"
 #include "Buttons_and_LED.h"
 #include "DSP_data.h"
+#include "crc.h" // For UART
 
 // TIM_HandleTypeDef htim2;
 // TIM_HandleTypeDef htim3;
@@ -39,7 +40,26 @@ void zero_padding_value();
 
 system_data process_data; // From file name "system_data.h"
 
-// [Temp]Redirect printf to UART
+// [Temporary] For UART
+
+#pragma pack(push, 1)
+typedef struct {
+	union {
+		uint32_t marker;
+		uint8_t  marker_b[sizeof(uint32_t)];
+	};
+	union {
+		uint16_t crc;
+		uint8_t  crc_b[sizeof(uint16_t)];
+	};
+	union {
+		float   data[DMA_ADC_DATA_LENGTH * 8];
+		uint8_t data_b[sizeof(float) * DMA_ADC_DATA_LENGTH * 8];
+	};
+} t_packet;
+#pragma pack(pop)
+t_packet              tx_packet;
+
 int _write(int file, char *ptr, int len)
 {
   // HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 1000);
@@ -146,33 +166,21 @@ void system_loop()
         HAL_Delay(_print_delay);
       }
       #else
-      // send as binary (fastest)
+      // send as binary packet
 
-					// TX buffer
-					#pragma pack(push, 1)
-					uint8_t buf[sizeof(uint32_t) + sizeof(adc_raw_data)] = {0};
-					#pragma pack(pop)
+      tx_packet.marker = PACKET_MARKER;
+      memcpy(tx_packet.data, &adc_data, sizeof(adc_data));
+      tx_packet.crc = CRC16_block(0, tx_packet.data, sizeof(tx_packet.data));
 
-					unsigned int index = 0;
-
-					{	// 1st word = packet marker
-						buf[index++] = (uint8_t)(PACKET_MARKER >>  0);
-						buf[index++] = (uint8_t)(PACKET_MARKER >>  8);
-						buf[index++] = (uint8_t)(PACKET_MARKER >> 16);
-						buf[index++] = (uint8_t)(PACKET_MARKER >> 24);
-					}
-
-					{	// followed by all the samples
-						const unsigned int size = sizeof(adc_raw_data);
-						memcpy(&buf[index], &adc_raw_data, size);
-						index += size;
-					}
-
-					{	// start sending the packet (wait here for upto 200ms until it does start)
-						const uint32_t tick = HAL_GetTick();
-						while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, buf, index) && (HAL_GetTick() - tick) < 200)
-							__WFI();    // wait until next interrupt occurs
-					}
+        #if 0
+        // start sending the packet (wait here for upto 200ms until it does start)
+        const uint32_t tick = HAL_GetTick();
+        while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet)) && (HAL_GetTick() - tick) < 200)
+          __WFI();    // wait until next interrupt occurs
+       #else
+        // don't hang around waiting for packet to start
+        HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet));
+        #endif
       #endif
     }
     // Restart the Data capture
@@ -210,7 +218,7 @@ void zero_padding_value()
     zero_pad_adc_PA[0] = _adc_avg_data[0] / _length;
     zero_pad_adc_PA[1] = _adc_avg_data[1] / _length;
 
-    printf("Average \r\n %.1f - %.3f, %.1f - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
+    printf("Average \r\n %d - %.3f, %d - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
            zero_pad_adc_PA[1], adc_volt_convert(zero_pad_adc_PA[1]));
     release_manual_read_ADC();
     release_manual_ctrl_DAC();

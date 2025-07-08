@@ -28,7 +28,7 @@ void generate_ref_signal(int _length);
 void calculate_signal_amplitude(system_data *_adc_data1);
 float adc_volt_convert(int16_t raw_adc);
 int16_t low_pass_filter_calc(int16_t input, int16_t prev_output);
-float phase_value_calculation(float _in_array[], int16_t _start_l, int16_t _length);
+float phase_value_calculation(int16_t _in_array[], int16_t _start_l, int16_t _length);
 float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _phase);
 int8_t unit_conversion(float *value);
 
@@ -186,7 +186,7 @@ void generate_ref_signal(int _length)
     }
 }
 
-float phase_value_calculation(float _in_array[], int16_t _start_l, int16_t _length)
+float phase_value_calculation(int16_t _in_array[], int16_t _start_l, int16_t _length)
 {
     float I_sum = 0.0f, Q_sum = 0.0f;
     int sample_count = _length - _start_l;

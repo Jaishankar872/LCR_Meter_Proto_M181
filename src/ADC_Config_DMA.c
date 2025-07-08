@@ -303,6 +303,9 @@ void separate_ADC_CH_from_DMA()
 
             adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
             adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
+
+            adc_data[((measure_mode_flag * 2) - 2)][i] =  adc_volt_convert(PA0_data_temp);
+            adc_data[((measure_mode_flag * 2) - 1)][i] = adc_volt_convert(PA1_data_temp);
         }
     }
     else
