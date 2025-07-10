@@ -38,7 +38,7 @@ int32_t raw_adc_DMA_data[DMA_ADC_DATA_LENGTH];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
 uint8_t measure_mode_flag = 0;
-volatile uint8_t _VI_measure_mode = 1;
+volatile uint8_t _VI_measure_mode = 0;
 
 // Private Function Declaration
 void Timer3_Init_ADC();
@@ -52,7 +52,7 @@ void GPIO_Init_VI_GS_Pin();
 void Timer2_Init_VI_switch(void);
 void Start_Timer_VI_switch();
 void Stop_Timer_VI_switch();
-void set_measure_mode(int8_t _mode1);
+void set_measure_mode(uint8_t _mode1);
 
 void ADC_Init_PA0_PA1();
 extern void Error_Handler(void);
@@ -68,9 +68,9 @@ void setup_ADC_with_DMA()
     // Initiate VI Pin with Timer 2
     GPIO_Init_VI_GS_Pin();
     Timer2_Init_VI_switch();
-    Start_Timer_VI_switch();
 
     set_ADC_Measure_window(1000); // 1 KHz
+    Start_Timer_VI_switch();
 }
 
 // Manual Control for Zero padding
@@ -91,8 +91,6 @@ void setup_ADC_with_DMA()
 //     // Release by Windows Reset the following flag
 //     _manual_read_ADC_ = 0;              // Release to normal mode
 //     adc_read_complete_flag_DMA = 0;     // Re-Capture the Reading
-//     _VI_measure_mode = 1;               // Reset VI Switch Position
-//     set_measure_mode(_VI_measure_mode); // GPIO State
 // }
 
 void Timer3_Init_ADC()
@@ -261,9 +259,7 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
     }
 
     // After the Windows Reset the following flag
-    adc_read_complete_flag_DMA = 0;     // Re-Capture the Reading
-    _VI_measure_mode = 1;               // Reset VI Switch Position
-    set_measure_mode(_VI_measure_mode); // GPIO State
+    adc_read_complete_flag_DMA = 0; // Re-Capture the Reading
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
@@ -277,7 +273,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 
     if (hadc->Instance == ADC1)
         separate_ADC_CH_from_DMA();
-    // Now will take over by DMA
 }
 
 void separate_ADC_CH_from_DMA()
@@ -328,6 +323,7 @@ uint8_t ADC_recapture_data() // Pointer used to edit in struct value
     if (get_measure_status() == 4)
     {
         adc_read_complete_flag_DMA = 0; // Reset Flag After Copying
+        _VI_measure_mode = 0; // Reset VI Switch Position
         return 1;                       // Recapture started
     }
     else
@@ -402,11 +398,11 @@ void Stop_Timer_VI_switch()
 }
 
 // VI Measure mode controlled by Timer 2 Interrupt
-void set_measure_mode(int8_t _a_mode1)
+void set_measure_mode(uint8_t _a_mode1)
 {
+    uint8_t _mode1 = _a_mode1 / 2;
     if (_a_mode1 % 2 == 0)
     {
-        int8_t _mode1 = _a_mode1 >> 1;  // same as /2, but clearer for bit‑ops
         if (_mode1 >= 0 && _mode1 <= 3)
         {
             HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, (_mode1 & 2) ? HIGH : LOW); // 2nd bit
@@ -415,17 +411,16 @@ void set_measure_mode(int8_t _a_mode1)
     }
     else
     {
-        // Start_ADC_Conversion(); // Trigger the Measurement
+        measure_mode_flag = _mode1 + 1;
+        Start_ADC_Conversion(); // Trigger the Measurement
     }
 }
 
 void On_Timer2_Interrupt()
 {
-    if (adc_read_complete_flag_DMA != 4)
+    if (_VI_measure_mode <= 7)
     {
-        _VI_measure_mode++;
-        if (_VI_measure_mode >= 7)
-            _VI_measure_mode = 0;
         set_measure_mode(_VI_measure_mode);
+        _VI_measure_mode++;
     }
 }

@@ -42,7 +42,7 @@ typedef struct system_data
 } system_data;
 
 // UART Config
-// #define MATLAB_SERIAL // Comment to Enable Windows GUI
+#define MATLAB_SERIAL // Comment to Enable Windows GUI
 
 // #define UART_BAUDRATE              115200
 // #define UART_BAUDRATE                230400
