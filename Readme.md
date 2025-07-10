@@ -46,11 +46,21 @@
 
 > Note:
 >
-> <img src="docs/uart_frame_out1.png" alt="image" style="width:150px;height:auto;">
+> <img src="docs/uart_frame_out1.png" alt="image" style="width:auto;height:auto;">
 
-### 2. VI/GS Pin handling
+### 2. VI/GS Pin handling (open load condition)
 
-<img src="docs/ADC_scan_mode1.png" alt="image" style="width:auto;height:auto;">
+<img src="docs/JYE_ADC_VI_GS_01.png" alt="image" style="width:auto;height:auto;">
+
+<img src="docs/JYE_ADC_VI_GS_02.png" alt="image" style="width:auto;height:auto;">
+
+VI and GS Pin is not HIGH simultaneously during Open Circuit
+
+<img src="docs/JYE_FW_VI_GS_03.png" alt="image" style="width:auto;height:auto;">
+
+### 3. VI/GS Pin handling (Short Circuit condition)
+
+Working on it.......
 
 
 ***
