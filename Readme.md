@@ -38,6 +38,19 @@
 * ER → Equivalent Series Resistor(ESR)
 * D → Dissipation factor (or) Tan Delta
 
+## Analysis Original JYETech Firmware
+### 1. With 10nF Film as a load
+ Connected 10nF Capacitor as a load then capture waveform and UART serial output
+
+<img src="docs/measure_with_10nF_film_cap.png" alt="image" style="width:200px;height:auto;">
+
+> Note:
+> <img src="docs/uart_frame_out1.png" alt="image" style="width:150px;height:auto;">
+
+### 2. VI/GS Pin handling
+
+<img src="docs/ADC_scan_mode1.png" alt="image" style="width:auto;height:auto;">
+
 
 ***
  **Further details will be added in [Wiki page](https://docs.jaidb.in/m181_lcr/Home/)**
