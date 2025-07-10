@@ -150,39 +150,70 @@ void system_loop()
     screen1_home_print(process_data);
     if (process_data.uart_all_print_DSO)
     {
-      #ifdef MATLAB_serial_enable
-      const int _print_delay = 5; // Milli Seconds
-      // printf("Via DMA interrupt Callback function\n");
-      for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
-      {
-        printf("%d,", i + 1);
-        for (int col = 0; col < 8; col++)
-        {
-          if (col != 7)
-            printf("%.1f,", adc_raw_data[col][i]);
-          else
-            printf("%.1f\r\n", adc_raw_data[col][i]);
-        }
-        HAL_Delay(_print_delay);
-      }
-      #else
-      // send as binary packet
+      const HAL_UART_StateTypeDef state = HAL_UART_GetState(&huart1);
+				if (state == HAL_UART_STATE_READY)
+				{	// the UART is available to use
+					//
+					// send the sampled data down the serial link
 
-      tx_packet.marker = PACKET_MARKER;
-      memcpy(tx_packet.data, &adc_data, sizeof(adc_data));
-      tx_packet.crc = CRC16_block(0, tx_packet.data, sizeof(tx_packet.data));
+					#ifdef MATLAB_SERIAL
+						// send as ASCII
 
-        #if 0
-        // start sending the packet (wait here for upto 200ms until it does start)
-        const uint32_t tick = HAL_GetTick();
-        while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet)) && (HAL_GetTick() - tick) < 200)
-          __WFI();    // wait until next interrupt occurs
-       #else
-        // don't hang around waiting for packet to start
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet));
-        #endif
-      #endif
+						const int _print_delay = 5; // Milli Seconds
+            const int _channel_count = 8;
+						for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
+            {
+              printf("%d,", i + 1);
+              for (int col = 0; col < _channel_count; col++)
+              {
+                if (col != (_channel_count-1))
+                  printf("%d,", adc_raw_data[col][i]);
+                else
+                  printf("%d\r\n", adc_raw_data[col][i]);
+              }
+              HAL_Delay(_print_delay);
+            }
+					#else
+						// send as binary packet
+
+						// STM32's are little endian (data is LS-Byte 1st)
+						// the receiving end needs to take that into account when processing the rx'ed data
+						// your receiving app can use htons(), htonl(), ntohs(), ntohl() to swap endianness (if need be)
+
+						// create TX packet
+						tx_packet.marker = PACKET_MARKER;                                         // packet start marker
+						memcpy(tx_packet.data, &adc_data, sizeof(adc_data));                      // packet data
+
+						#ifdef UART_BIG_ENDIAN
+							// make the packet values BIG endian
+							// though the receivng end (your PC etc) is the one that needs to be dealing with this, not us
+
+							tx_packet.marker = __builtin_bswap32(tx_packet.marker);
+
+							uint32_t *pd = (uint32_t *)tx_packet.data;
+							for (unsigned int i = 0; i < (sizeof(adc_data) / sizeof(uint32_t)); i++, pd++)
+								*pd = __builtin_bswap32(*pd);
+						#endif
+
+						tx_packet.crc = CRC16_block(0, tx_packet.data, sizeof(tx_packet.data));   // packet CRC - compute the CRC of the data
+
+						#ifdef UART_BIG_ENDIAN
+							// make the packet CRC little endian
+							tx_packet.crc = __builtin_bswap16(tx_packet.crc);
+						#endif
+
+						#if 0
+							// start sending the packet (wait here for upto 200ms until it does start)
+							const uint32_t tick = HAL_GetTick();
+							while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet)) && (HAL_GetTick() - tick) < 200)
+								__WFI();    // wait until next interrupt occurs
+						#else
+							// don't hang around waiting for the send to start
+							HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet));
+						#endif
+					#endif
     }
+  }
     // Restart the Data capture
     process_data_via_DSP(&process_data);
     ADC_recapture_data();
