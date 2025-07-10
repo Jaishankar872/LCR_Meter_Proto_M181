@@ -60,8 +60,9 @@ VI and GS Pin is not HIGH simultaneously during Open Circuit
 
 ### 3. VI/GS Pin handling (Short Circuit condition)
 
-Working on it.......
+<img src="docs/JYE_ADC_VI_GS_short_04.png" alt="image" style="width:auto;height:auto;">
 
+VI - HIGH, GS - LOW not happening during short circuit
 
 ***
 
