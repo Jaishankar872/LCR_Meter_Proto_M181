@@ -38,7 +38,6 @@ int32_t raw_adc_DMA_data[DMA_ADC_DATA_LENGTH];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
 uint8_t measure_mode_flag = 0;
-uint8_t GS_pin_state = 1, VI_pin_state = 0; // VI_measure_mode = 0;
 volatile uint8_t _VI_measure_mode = 1;
 
 // Private Function Declaration
@@ -101,9 +100,9 @@ void Timer3_Init_ADC()
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-    const uint32_t timer3_rate_Hz = (DMA_ADC_DATA_LENGTH / no_of_sine_wave_cycle_per_data) * 1000; // Default - 1kHz 
+    const uint32_t timer3_rate_Hz = (DMA_ADC_DATA_LENGTH / no_of_sine_wave_cycle_per_data) * 1000; // Default - 1kHz
 
-    htim3.Instance = TIM3; 
+    htim3.Instance = TIM3;
     htim3.Init.Prescaler = 4;
     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
     htim3.Init.Period = (((HAL_RCC_GetHCLKFreq() / (htim3.Init.Prescaler + 1)) + (timer3_rate_Hz / 2)) / timer3_rate_Hz) - 1;
@@ -144,7 +143,7 @@ void ADC_Init_PA0_PA1()
     ADC_ChannelConfTypeDef sConfig = {0};
 
     // ************************************************
-	// setup the master ADC
+    // setup the master ADC
     hadc1.Instance = ADC1;
     hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE; // Only One Channel is used
     hadc1.Init.ContinuousConvMode = DISABLE;
@@ -167,15 +166,15 @@ void ADC_Init_PA0_PA1()
 
     // ADC1 and ADC2 Settings
     sConfig.Rank = ADC_REGULAR_RANK_1;
-//	sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLES_5;     //   1.5 + 12.5 =  14 cycles, ADC clk = 12MHz, 1.2us sample time, max 857kHz sample rate
-//	sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;     //   7.5 + 12.5 =  20 cycles, ADC clk = 12MHz, 1.7us sample time, max 600kHz sample rate
-//	sConfig.SamplingTime = ADC_SAMPLETIME_13CYCLES_5;    //  13.5 + 12.5 =  26 cycles, ADC clk = 12MHz, 2.2us sample time, max 461kHz sample rate
-    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;    //  28.5 + 12.5 =  41 cycles, ADC clk = 12MHz, 3.4us sample time, max 292kHz sample rate
-//	sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;    //  41.5 + 12.5 =  54 cycles, ADC clk = 12MHz, 4.5us sample time, max 222kHz sample rate
-//	sConfig.SamplingTime = ADC_SAMPLETIME_55CYCLES_5;    //  55.5 + 12.5 =  68 cycles, ADC clk = 12MHz, 5.7us sample time, max 176kHz sample rate
-// sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;    //  71.5 + 12.5 =  84 cycles, ADC clk = 12MHz, 7.0us sample time, max 142kHz sample rate
-//	sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;   // 239.5 + 12.5 = 252 cycles, ADC clk = 12MHz, 21us sample time, max 47.6kHz sample rate
-    
+    //	sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLES_5;     //   1.5 + 12.5 =  14 cycles, ADC clk = 12MHz, 1.2us sample time, max 857kHz sample rate
+    //	sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;     //   7.5 + 12.5 =  20 cycles, ADC clk = 12MHz, 1.7us sample time, max 600kHz sample rate
+    //	sConfig.SamplingTime = ADC_SAMPLETIME_13CYCLES_5;    //  13.5 + 12.5 =  26 cycles, ADC clk = 12MHz, 2.2us sample time, max 461kHz sample rate
+    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5; //  28.5 + 12.5 =  41 cycles, ADC clk = 12MHz, 3.4us sample time, max 292kHz sample rate
+    //	sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;    //  41.5 + 12.5 =  54 cycles, ADC clk = 12MHz, 4.5us sample time, max 222kHz sample rate
+    //	sConfig.SamplingTime = ADC_SAMPLETIME_55CYCLES_5;    //  55.5 + 12.5 =  68 cycles, ADC clk = 12MHz, 5.7us sample time, max 176kHz sample rate
+    // sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;    //  71.5 + 12.5 =  84 cycles, ADC clk = 12MHz, 7.0us sample time, max 142kHz sample rate
+    //	sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;   // 239.5 + 12.5 = 252 cycles, ADC clk = 12MHz, 21us sample time, max 47.6kHz sample rate
+
     // Configure Regular Channel
     sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
 
@@ -185,7 +184,7 @@ void ADC_Init_PA0_PA1()
     }
 
     // ************************************************
-	// setup the slave ADC
+    // setup the slave ADC
 
     hadc2.Instance = ADC2;
     /* Same configuration as ADC master, with continuous mode and external      */
@@ -277,11 +276,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
       */
 
     if (hadc->Instance == ADC1)
-    {
-        Stop_ADC_Conversion();
         separate_ADC_CH_from_DMA();
-    }
-
     // Now will take over by DMA
 }
 
@@ -301,7 +296,7 @@ void separate_ADC_CH_from_DMA()
         adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
         adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
 
-        adc_data[((measure_mode_flag * 2) - 2)][i] =  adc_volt_convert(PA0_data_temp);
+        adc_data[((measure_mode_flag * 2) - 2)][i] = adc_volt_convert(PA0_data_temp);
         adc_data[((measure_mode_flag * 2) - 1)][i] = adc_volt_convert(PA1_data_temp);
     }
 
@@ -319,7 +314,6 @@ void Start_ADC_Conversion()
     // Restart the ADC
     HAL_ADC_Start(&hadc2); // Start ADC2 First
     HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_DATA_LENGTH);
-
 }
 
 void Stop_ADC_Conversion()
@@ -408,76 +402,20 @@ void Stop_Timer_VI_switch()
 }
 
 // VI Measure mode controlled by Timer 2 Interrupt
-void set_measure_mode(int8_t _mode1)
+void set_measure_mode(int8_t _a_mode1)
 {
-    /*
-    +----------------------+
-    <1> - Set Voltage Mode
-    <2> - Measure Voltage ****
-    <3> - Set Current Mode
-    <4> - Measure Current ****
-    <5> - Set Zero Cross for Voltage
-    <6> - Measure ZC Voltage ****
-    <7> - Set Zero Cross for Current
-    <8> - Measure ZC Current ****
-    |---------------|
-    | Set | Measure |
-    |---------------|
-    */
-    switch (_mode1)
+    if (_a_mode1 % 2 == 0)
     {
-    case 1:
-        // 1. Set Voltage Mode
-        VI_pin_state = LOW;
-        GS_pin_state = HIGH;
-        break;
-    case 2:
-        // 2. Measure Voltage
-        measure_mode_flag = 1; // Start Measurement
-        break;
-    case 3:
-        // 3. Set Current Mode
-        VI_pin_state = HIGH;
-        GS_pin_state = HIGH;
-        break;
-    case 4:
-        // 4. Measure Current
-        measure_mode_flag = 2; // Start Measurement
-        break;
-    case 5:
-        // 5.Set ZC Voltage Mode
-        VI_pin_state = LOW;
-        GS_pin_state = LOW;
-        break;
-    case 6:
-        // 6. Measure ZC Voltage
-        measure_mode_flag = 3; // Start ZC (Zero Cross)
-        break;
-    case 7:
-        // 7.Set ZC Voltage Mode
-        VI_pin_state = HIGH;
-        GS_pin_state = LOW;
-        break;
-    case 8:
-        // 8. Measure ZC Current
-        measure_mode_flag = 4; // Start ZC (Zero Cross)
-        break;
-    default:
-        // Add Fail safe step
-        // Do Nothing -> Stop the ADC data capturing volt/current data
-        measure_mode_flag = 0;
-        break;
-    }
-
-    if (_mode1 % 2 != 0)
-    {
-        // Set the Mode
-        HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, VI_pin_state);
-        HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, GS_pin_state);
+        int8_t _mode1 = _a_mode1 >> 1;  // same as /2, but clearer for bit‑ops
+        if (_mode1 >= 0 && _mode1 <= 3)
+        {
+            HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, (_mode1 & 2) ? HIGH : LOW); // 2nd bit
+            HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, (_mode1 & 1) ? HIGH : LOW); // 1st bit
+        }
     }
     else
     {
-        Start_ADC_Conversion(); // Trigger the Measurement
+        // Start_ADC_Conversion(); // Trigger the Measurement
     }
 }
 
@@ -486,8 +424,8 @@ void On_Timer2_Interrupt()
     if (adc_read_complete_flag_DMA != 4)
     {
         _VI_measure_mode++;
-        if (_VI_measure_mode >= 9)
-            _VI_measure_mode = 1;
+        if (_VI_measure_mode >= 7)
+            _VI_measure_mode = 0;
         set_measure_mode(_VI_measure_mode);
     }
 }
