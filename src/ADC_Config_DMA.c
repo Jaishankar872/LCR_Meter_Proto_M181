@@ -33,7 +33,7 @@ TIM_HandleTypeDef htim2, htim3;
 // Clean the Code Before Build the code
 
 // Private Variable Declaration
-int32_t raw_adc_DMA_data[DMA_ADC_data_length];
+int32_t raw_adc_DMA_data[DMA_ADC_DATA_LENGTH];
 int32_t zero_pad_adc_raw[2];
 volatile uint8_t adc_read_complete_flag_DMA = 0;
 
@@ -101,10 +101,10 @@ void Timer3_Init_ADC()
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-    htim3.Instance = TIM3; // Timer 3 ** Missed this line development face
+    htim3.Instance = TIM3; 
     htim3.Init.Prescaler = 8;
     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim3.Init.Period = 270; // Default Set for 1kHZ Measurement, 20% as Extra Buffer
+    htim3.Init.Period = 270; // [Temp] Default Set for 1kHZ Measurement, 20% as Extra Buffer
     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
     if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -141,6 +141,8 @@ void ADC_Init_PA0_PA1()
      * */
     ADC_ChannelConfTypeDef sConfig = {0};
 
+    // ************************************************
+	// setup the master ADC
     hadc1.Instance = ADC1;
     hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE; // Only One Channel is used
     hadc1.Init.ContinuousConvMode = DISABLE;
@@ -161,17 +163,27 @@ void ADC_Init_PA0_PA1()
         Error_Handler();
     }
 
-    /** Configure Regular Channel
-     */
-    sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
+    // ADC1 and ADC2 Settings
     sConfig.Rank = ADC_REGULAR_RANK_1;
-    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;
+//	sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLES_5;     //   1.5 + 12.5 =  14 cycles, ADC clk = 12MHz, 1.2us sample time, max 857kHz sample rate
+//	sConfig.SamplingTime = ADC_SAMPLETIME_7CYCLES_5;     //   7.5 + 12.5 =  20 cycles, ADC clk = 12MHz, 1.7us sample time, max 600kHz sample rate
+//	sConfig.SamplingTime = ADC_SAMPLETIME_13CYCLES_5;    //  13.5 + 12.5 =  26 cycles, ADC clk = 12MHz, 2.2us sample time, max 461kHz sample rate
+    sConfig.SamplingTime = ADC_SAMPLETIME_28CYCLES_5;    //  28.5 + 12.5 =  41 cycles, ADC clk = 12MHz, 3.4us sample time, max 292kHz sample rate
+//	sConfig.SamplingTime = ADC_SAMPLETIME_41CYCLES_5;    //  41.5 + 12.5 =  54 cycles, ADC clk = 12MHz, 4.5us sample time, max 222kHz sample rate
+//	sConfig.SamplingTime = ADC_SAMPLETIME_55CYCLES_5;    //  55.5 + 12.5 =  68 cycles, ADC clk = 12MHz, 5.7us sample time, max 176kHz sample rate
+// sConfig.SamplingTime = ADC_SAMPLETIME_71CYCLES_5;    //  71.5 + 12.5 =  84 cycles, ADC clk = 12MHz, 7.0us sample time, max 142kHz sample rate
+//	sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;   // 239.5 + 12.5 = 252 cycles, ADC clk = 12MHz, 21us sample time, max 47.6kHz sample rate
+    
+    // Configure Regular Channel
+    sConfig.Channel = ADC_CHANNEL_0; // PA0 Pin
+
     if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
     {
         Error_Handler();
     }
 
-    //---------------------------ADC1 Config Completed----------------------------------//
+    // ************************************************
+	// setup the slave ADC
 
     hadc2.Instance = ADC2;
     /* Same configuration as ADC master, with continuous mode and external      */
@@ -205,7 +217,7 @@ void ADC_Init_PA0_PA1()
     // Disable the ADC Interrupt at stm32f1xx_hal_msp.c file
 
     // Start the ADC with DMA
-    // HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+    // HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_DATA_LENGTH);
 
     // Rest of the Config remains mentioned as
     // void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc) placed at stm32f1xx_hal_msp.c file
@@ -227,35 +239,20 @@ void DMA_Init_ADC()
     /* DMA controller clock enable */
     __HAL_RCC_DMA1_CLK_ENABLE();
 
-    /* DMA interrupt init */
-    /* DMA1_Channel1_IRQn interrupt configuration */
+    // ADC - DMA1_Channel1_IRQn interrupt configuration
     HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0); // 1. PreemptPriority = 0, SubPriority = 0
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);         // 1. ADC Data
 }
 
 void set_ADC_Measure_window(uint16_t _measure_frequency)
 {
-    float window_time_us = 0;
-    uint32_t timer3_period = 0; // 32 bit is needed -to handle number Big number on Calculation
-    uint8_t timer3_prescaler = 4;
-    uint8_t _sample_rate = ADC_SAMPLE_RATE;
+    const uint32_t timer3_rate_Hz = (DMA_ADC_DATA_LENGTH / no_of_sine_wave_cycle_per_data) * _measure_frequency;
+    uint32_t timer3_period = (((HAL_RCC_GetHCLKFreq() / (htim3.Init.Prescaler + 1)) + (timer3_rate_Hz / 2)) / timer3_rate_Hz) - 1;
 
-    float APB1_Timer_clock_set_Time_nS = 13.889;                                                  // 10^3/72MHz = 13.889nS; APB1 Timer Clock = 72MHz
-    float After_timer3_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * (timer3_prescaler + 1); // This is correct formula
-
-    if (_measure_frequency > 0)
+    if (_measure_frequency > 0) // check point to ensure only +ve value only
     {
-        window_time_us = 1000000 / _measure_frequency; // Microseconds
-        window_time_us /= _sample_rate;
-
-        timer3_period = window_time_us * 1000;           // Convert into uS into nS
-        timer3_period /= After_timer3_prescaler_time_nS; // Timer frequency
-        // timer3_period -= 1;                              // Counter starts with 0
-        // timer3_period += 1;                              //To Compensate Calculation Error
-
-        htim3.Init.Prescaler = timer3_prescaler;
         htim3.Init.Period = timer3_period;
-        // Rest of Config remains same as MX_TIM3_Init() function
+        // Rest of Config remains same as Timer3_Init_ADC() function
         if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
         {
             Error_Handler();
@@ -292,7 +289,7 @@ void separate_ADC_CH_from_DMA()
 
     if (_manual_read_ADC_ != 1)
     {
-        for (int i = 0; i < DMA_ADC_data_length; i++)
+        for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
         {
             PA0_data_temp = (int16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
             PA1_data_temp = (int16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
@@ -327,7 +324,7 @@ void Start_ADC_Conversion()
     // Restart the ADC
     HAL_ADC_Start(&hadc2); // Start ADC2 First
     if (_manual_read_ADC_ != 1)
-        HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_data_length);
+        HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_DATA_LENGTH);
     else
         HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)zero_pad_adc_raw, 2);
 }

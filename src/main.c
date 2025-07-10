@@ -153,7 +153,7 @@ void system_loop()
       #ifdef MATLAB_serial_enable
       const int _print_delay = 5; // Milli Seconds
       // printf("Via DMA interrupt Callback function\n");
-      for (int i = 0; i < DMA_ADC_data_length; i++)
+      for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
       {
         printf("%d,", i + 1);
         for (int col = 0; col < 8; col++)

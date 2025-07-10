@@ -13,8 +13,8 @@
 #define PI 3.14159f
 
 // Private Variable Declaration
-int8_t ref0_data[DMA_ADC_data_length];
-int8_t ref90_data[DMA_ADC_data_length];
+int8_t ref0_data[DMA_ADC_DATA_LENGTH];
+int8_t ref90_data[DMA_ADC_DATA_LENGTH];
 
 int16_t max_adc_Volt = 0, min_adc_Volt = 4096;
 int16_t max_adc_Volt_AFC = 0, min_adc_Volt_AFC = 4096;
@@ -35,7 +35,7 @@ int8_t unit_conversion(float *value);
 // Function Definition
 void setup_DSP_parameter()
 {
-    generate_ref_signal(DMA_ADC_data_length);
+    generate_ref_signal(DMA_ADC_DATA_LENGTH);
 }
 
 void process_data_via_DSP(system_data *_adc_data)
@@ -54,14 +54,14 @@ void process_data_via_DSP(system_data *_adc_data)
     _phase_offset_array_index = 0;
     for (int _row = 0; _row < 8; _row++)
     {
-        for (int _col = 1; _col < DMA_ADC_data_length; _col++)
+        for (int _col = 1; _col < DMA_ADC_DATA_LENGTH; _col++)
         {
             // Low pass filter
             adc_raw_data[_row][_col] = low_pass_filter_calc(adc_raw_data[_row][_col], adc_raw_data[_row][_col - 1]);
         }
     }
-    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[(amp_gain_sel * 4)], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length);            // Phase calculation for voltage
-    _adc_data->current_phase = fabsf(phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_data_length) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 3], _phase_offset_array_index, DMA_ADC_data_length)); // Phase calculation for current
+    _adc_data->voltage_phase = phase_value_calculation(adc_raw_data[(amp_gain_sel * 4)], _phase_offset_array_index, DMA_ADC_DATA_LENGTH) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_DATA_LENGTH);            // Phase calculation for voltage
+    _adc_data->current_phase = fabsf(phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 2], _phase_offset_array_index, DMA_ADC_DATA_LENGTH) - phase_value_calculation(adc_raw_data[(amp_gain_sel * 4) + 3], _phase_offset_array_index, DMA_ADC_DATA_LENGTH)); // Phase calculation for current
     _adc_data->current_phase -= 180;
 
     _adc_data->VI_phase = fabsf(fabsf(_adc_data->voltage_phase) - fabsf(_adc_data->current_phase)); // Phase calculation for voltage & current
@@ -99,7 +99,7 @@ void calculate_signal_amplitude(system_data *_adc_data1)
     double sum_sq_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     double rms_val_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     // double amp_val_adc[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    int n = DMA_ADC_data_length;
+    int n = DMA_ADC_DATA_LENGTH;
 
     // Remove DC offset and accumulate squared deviations
     for (int _row = 0; _row < 8; _row++)

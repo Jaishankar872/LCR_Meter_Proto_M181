@@ -48,9 +48,9 @@ typedef struct system_data
 
 // ADC Config
 extern system_data process_data;
-#define DMA_ADC_data_length 128 // n=6; Selected Length is 2^n
-#define DMA_ADC_DATA_LENGTH DMA_ADC_data_length // Will be updated
-#define ADC_SAMPLE_RATE 64      // 32 samples per cycle
+#define DMA_ADC_DATA_LENGTH 128 // n=6; Selected Length is 2^n
+#define no_of_sine_wave_cycle_per_data 2 
+// #define ADC_SAMPLE_RATE 64      // 32 samples per cycle
 
 /*
  * adc_raw_data -> 2-D Array
@@ -72,8 +72,8 @@ extern system_data process_data;
 // Gain B - 1
 int8_t volt_gain_sel, amp_gain_sel;
 
-int16_t adc_raw_data[8][DMA_ADC_data_length];
-float adc_data[8][DMA_ADC_data_length];
+int16_t adc_raw_data[8][DMA_ADC_DATA_LENGTH];
+float adc_data[8][DMA_ADC_DATA_LENGTH];
 int16_t zero_pad_adc_PA[2];
 
 #endif // SYSTEM_DATA_H
