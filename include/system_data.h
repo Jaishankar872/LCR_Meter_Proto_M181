@@ -7,6 +7,8 @@
 // Firmware Version Global Variable
 #define fw_version 0.25
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 // Define the struct
 typedef struct system_data
 {

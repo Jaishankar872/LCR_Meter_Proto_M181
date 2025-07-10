@@ -5,6 +5,7 @@
  * Via Timer 1 Interrupt
  *
  * @author Jaishankar M
+ * Credits: OneOfEleven
  */
 
 #include "DAC_sine_wave_gen.h"
@@ -15,21 +16,21 @@
 
 // Timer
 TIM_HandleTypeDef htim1;
-uint16_t _timer1_prescaler = 2;
 
 // Private Variables
-#define _no_of_sample_per_sine 50
-int16_t sine_data[_no_of_sample_per_sine];
-uint16_t DAC_resolution = 256; // 2^8=256;
-int16_t _pos_sine_data = 0;
-uint8_t att_percent = 0;
+
+// DAC Config
+const uint16_t DAC_resolution = 256; // 2^8=256; - Fixed
+float DAC_sine_wave_amplitude = 1.0;  // 0.0 = 0%, 1.0 = 100%, -1.0 = 100% phase inverted
+volatile unsigned int DAC_sine_table_index = 0;    // Has current index value
+uint8_t DAC_sine_table[DMA_ADC_DATA_LENGTH / no_of_sine_wave_cycle_per_data] = {0};  // matched to the ADC sampling
 
 // Private Function Declaration
-void generate_sine_wave_data();
+void generate_sine_wave_data(const float amplitude);
 void DAC_pinMode_B0_B7(uint8_t _pinmode0);
 void DAC_analogWrite_B0_B7(uint8_t _dat1);
 void set_sine_wave_frequency(uint16_t _set_frequency);
-void timer1_setup(void);
+void Timer1_Init_DAC(void);
 extern void Error_Handler(void);
 
 /**
@@ -43,21 +44,24 @@ extern void Error_Handler(void);
 void sine_wave_setup()
 {
     DAC_pinMode_B0_B7(0x2);    // Set as output mode(0x2 Hex)
-    generate_sine_wave_data(); // Calling Sine data generator
-    timer1_setup();
+    generate_sine_wave_data(1.0); // Calling Sine data generator
+    Timer1_Init_DAC();
     set_sine_wave_frequency(1000); // Set Frequency
 }
 
-void generate_sine_wave_data()
+void generate_sine_wave_data(const float amplitude)
 {
-    int _max_DAC_value = DAC_resolution - 1;
-    float _step_value_k = (2 * 3.141 * 1000) / _no_of_sample_per_sine; // x1000
+    // fill the look-up buffer with one complete sine cycle
+    
+    // value will be limited from -1.0 to +1.0 
+    // 0.0 = 0%, 1.0 = 100%, -1.0 = 100% phase inverted
+    DAC_sine_wave_amplitude = (amplitude < -1.0f) ? -1.0f : (amplitude > 1.0f) ? 1.0f : amplitude;
 
-    for (int i = 0; i < _no_of_sample_per_sine; i++)
-    {
-        float _temp_cal_value = (float)(i * _step_value_k) / 1000;
-        sine_data[i] = (_max_DAC_value / 2) + (_max_DAC_value / 2 * sin(_temp_cal_value)); // calculating the sin value at each instance
-    }
+    const float _scale = (DAC_resolution - 1) * DAC_sine_wave_amplitude * 0.5f;
+    const float _phase_step = (float)(2.0 * M_PI) / ARRAY_SIZE(DAC_sine_table);
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(DAC_sine_table); i++)
+		DAC_sine_table[i] = (uint8_t)floorf(((1.0f + sinf(_phase_step * i)) * _scale) + 0.5f); // raised sine
 }
 
 /**
@@ -65,16 +69,18 @@ void generate_sine_wave_data()
  * @param None
  * @retval None
  */
-void timer1_setup(void)
+void Timer1_Init_DAC(void)
 {
 
     TIM_ClockConfigTypeDef sClockSourceConfig = {0};
     TIM_MasterConfigTypeDef sMasterConfig = {0};
 
+    const uint32_t timer1_rate_Hz = ARRAY_SIZE(DAC_sine_table) * 1000; // Default - 1kHz
+
     htim1.Instance = TIM1;
-    htim1.Init.Prescaler = _timer1_prescaler;
+    htim1.Init.Prescaler = 2;
     htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim1.Init.Period = 359; // Default Set for 1kHz Measurement
+    htim1.Init.Period = (((HAL_RCC_GetHCLKFreq() / (htim1.Init.Prescaler + 1)) + (timer1_rate_Hz / 2)) / timer1_rate_Hz) - 1; //Default
     htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     htim1.Init.RepetitionCounter = 0;
     htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -116,27 +122,13 @@ void DAC_pinMode_B0_B7(uint8_t _pinmode0)
 void set_sine_wave_frequency(uint16_t _set_frequency)
 {
 
-    float window_time_us = 0;
-    uint32_t timer1_period = 0;
 
-    float APB1_Timer_clock_set_Time_nS = 20.9; // 48MHz = 20.9nS; //[Not Working] 72MHz = 13.889nS;
-    float After_timer1_prescaler_time_nS = APB1_Timer_clock_set_Time_nS * _timer1_prescaler;
+    const uint32_t timer1_rate_Hz = ARRAY_SIZE(DAC_sine_table) * _set_frequency; // Default - 1kHz
+    uint32_t timer1_period = (((HAL_RCC_GetHCLKFreq() / (htim1.Init.Prescaler + 1)) + (timer1_rate_Hz / 2)) / timer1_rate_Hz) - 1;
 
-    if (_set_frequency > 0)
+    if (_set_frequency > 0) // check point to ensure only +ve value only
     {
-        window_time_us = 1000000 / _set_frequency; // Microseconds
-        window_time_us /= _no_of_sample_per_sine;
-
-        timer1_period = window_time_us * 1000;           // Convert into nS into uS
-        timer1_period /= After_timer1_prescaler_time_nS; // Timer frequency
-
-        htim1.Init.Prescaler = _timer1_prescaler;
         htim1.Init.Period = timer1_period;
-        /** [Calculation] For Timer Clock 48MHz, Prescaler = 2, Sample per Cycle = 100
-         * 1000Hz => Period = 240 -1 = 239
-         * 500Hz => Period = 480 -1 = 479
-         * 100Hz => Period = 2400 -1 = 2399
-         */
         // Rest of Config remains same as MX_TIM3_Init() function
         if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
         {
@@ -146,28 +138,23 @@ void set_sine_wave_frequency(uint16_t _set_frequency)
 
     // Default Attenuation
     if (_set_frequency == 100)
-        set_DAC_out_factor(30);
+        generate_sine_wave_data(0.7);//set_DAC_out_factor(30);
     else if (_set_frequency == 500)
-        set_DAC_out_factor(15);
+        generate_sine_wave_data(0.85);//set_DAC_out_factor(15);
     else if (_set_frequency == 1000)
-        set_DAC_out_factor(0);
-}
-
-void set_DAC_out_factor(uint8_t _percent)
-{
-    att_percent = _percent;
+        generate_sine_wave_data(1.0);//set_DAC_out_factor(0);
 }
 
 void On_Timer1_Interrupt()
 {
-    uint16_t _raw = (uint16_t)(sine_data[_pos_sine_data] * (100 - att_percent)) + 50;
-    uint8_t _out_d = (uint8_t)(_raw / 100);
-    DAC_analogWrite_B0_B7(_out_d);
+    // uint16_t _raw = (uint16_t)(sine_data[_pos_sine_data] * (100 - att_percent)) + 50;
+    // uint8_t _out_d = (uint8_t)(_raw / 100);
 
-    if (_pos_sine_data >= (_no_of_sample_per_sine - 1))
-        _pos_sine_data = 0;
-    else
-        _pos_sine_data++;
+    unsigned int _index = DAC_sine_table_index;
+    DAC_analogWrite_B0_B7(DAC_sine_table[_index]);
+    
+    // next index value
+    DAC_sine_table_index = (++_index >= ARRAY_SIZE(DAC_sine_table)) ? 0 : _index;
 }
 
 void DAC_analogWrite_B0_B7(uint8_t _dat1)
