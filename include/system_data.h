@@ -7,8 +7,6 @@
 // Firmware Version Global Variable
 #define fw_version 0.25
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 // Define the struct
 typedef struct system_data
 {
@@ -53,6 +51,9 @@ typedef struct system_data
 extern system_data process_data;
 #define DMA_ADC_DATA_LENGTH 128 // n=6; Selected Length is 2^n
 #define no_of_sine_wave_cycle_per_data 2
+
+
+// extern uint8_t DAC_sine_table[64]; // matched to the ADC sampling
 // #define ADC_SAMPLE_RATE 64      // 32 samples per cycle
 
 // Amp Settings
