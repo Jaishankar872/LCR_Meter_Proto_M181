@@ -128,8 +128,8 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
     __HAL_LINKDMA(hadc, DMA_Handle, hdma_adc1);
 
     /* ADC1 interrupt Init */
-    HAL_NVIC_SetPriority(ADC1_2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(ADC1_2_IRQn);
+    HAL_NVIC_SetPriority(ADC1_2_IRQn, 1, 0);
+    HAL_NVIC_EnableIRQ(ADC1_2_IRQn); // 1. ADC data Ready
     /* USER CODE BEGIN ADC1_MspInit 1 */
 
     /* USER CODE END ADC1_MspInit 1 */
@@ -196,8 +196,8 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim_base)
     /* Peripheral clock enable */
     __HAL_RCC_TIM1_CLK_ENABLE();
     /* USER CODE BEGIN TIM1_MspInit 1 */
-    HAL_NVIC_SetPriority(TIM1_UP_IRQn, 2, 0); // PreemptPriority = 2, SubPriority = 0
-    HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);         // 3. Timer 1 DAC
+    HAL_NVIC_SetPriority(TIM1_UP_IRQn, 0, 0); // PreemptPriority = 0, SubPriority = 0
+    HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);         // 0. Timer 1 DAC
 
     /* USER CODE END TIM1_MspInit 1 */
   }

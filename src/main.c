@@ -329,8 +329,8 @@ static void DMA_Init_UART()
     __HAL_RCC_DMA1_CLK_ENABLE();
 
     /* DMA1_Channel4_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0); // PreemptPriority = 5, SubPriority = 0
-    HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn); // 6. UART DMA
+    HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 2, 0); // PreemptPriority = 2, SubPriority = 0
+    HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn); // 2. UART DMA
 }
 
 void Error_Handler(void)
