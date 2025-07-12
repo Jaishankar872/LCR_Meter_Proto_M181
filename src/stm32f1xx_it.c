@@ -346,7 +346,5 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM3)
     On_Timer3_Interrupt();
-  if (htim->Instance == TIM2)
-    On_Timer2_Interrupt();
 }
 /* USER CODE END 1 */

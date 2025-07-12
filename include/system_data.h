@@ -39,6 +39,18 @@ typedef struct system_data
 	uint8_t adc_measure_status; // 1 -> Start Voltage, 2 -> Start Current, 3 -> Both are Ready
 } system_data;
 
+typedef struct
+{
+    int16_t adc;
+    int16_t afc;
+} t_adc_dma_data_16;
+
+typedef struct
+{
+    int32_t adc;
+    int32_t afc;
+} t_adc_dma_data_32;
+
 // UART Config
 #define MATLAB_SERIAL // Comment to Enable Windows GUI
 
@@ -49,8 +61,13 @@ typedef struct system_data
 
 // ADC Config
 extern system_data process_data;
+uint8_t VI_measure_index;
 #define DMA_ADC_DATA_LENGTH 128 // n=6; Selected Length is 2^n
 #define no_of_sine_wave_cycle_per_data 2
+
+#define ADC_Block_skip_count 32
+#define ADC_Block_avg_count 1
+ // 1 = just one block = no averaging
 
 
 // extern uint8_t DAC_sine_table[64]; // matched to the ADC sampling
@@ -74,11 +91,6 @@ extern system_data process_data;
 
 uint8_t VI_measure_status; // Status
 
-/*
- * adc_raw_data -> 2-D Array
- * [Volt, AFC, Current, AFC] with Gain A [1- 4]
- * [Volt, AFC, Current, AFC] with Gain B [5- 8]
- */
 #define pos_volt_a 0
 #define pos_volt_AFC_a 1
 #define pos_amp_a 2

@@ -141,7 +141,7 @@ void system_loop()
     screen1_home_print(process_data);
   }
 
-  process_data.adc_measure_status = VI_measure_status;
+  process_data.adc_measure_status = VI_measure_index;
   if (process_data.adc_measure_status == VI_data_ready)
   {
     // First Process the data
@@ -217,9 +217,9 @@ void system_loop()
       }
     }
     // Restart the Data capture
-    process_data_via_DSP(&process_data);
-    _VI_cylce = 0; // Reset
-    HAL_Delay(800); // Pause for a moment
+    // process_data_via_DSP(&process_data);
+    VI_measure_index = 0; // Reset
+    HAL_Delay(100); // Pause for a moment
   }
   else
   {
