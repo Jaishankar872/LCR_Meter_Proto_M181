@@ -16,18 +16,18 @@
 #ifndef DMA_ADC_DATA_LENGTH
 #define DMA_ADC_DATA_LENGTH 50
 #endif
-extern int16_t adc_raw_data[8][DMA_ADC_DATA_LENGTH];
+// extern int16_t adc_raw_data[8][DMA_ADC_DATA_LENGTH];
+// extern uint8_t VI_measure_mode; // Status
 
 // Public Variable Declaration
+volatile uint8_t _VI_cylce;
 
 // Public Function Declaration
 void setup_ADC_with_DMA();
 void set_ADC_Measure_window(uint16_t _measure_frequency);
-uint8_t get_measure_status();
 float adc_volt_convert(int16_t raw_adc);
-uint8_t ADC_recapture_data();
-void manual_read_ADC();
-void release_manual_read_ADC();
+// void manual_read_ADC();
+// void release_manual_read_ADC();
 void On_Timer2_Interrupt();
 
 #endif // End of ADC_CONFIG_DMA_H

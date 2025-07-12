@@ -62,13 +62,17 @@ extern system_data process_data;
 // | 1 - GS - HIGH - Low Gain | 1 - VI - HIGH - Current | - Stop  - 3(11)
 // +--------------------------+-------------------------+
 // +------2nd bit is GS-------+-------1st bit is VI-----+ 
-// +--------------------------+-------------------------+
+// +---------------------([GS] [VI])--------------------+
 
-#define voltage_high_gain 0 // 0b0000 0000
-#define voltage_low_gain 1	// 0b0000 0001
-#define current_high_gain 2 // 0b0000 0010
-#define current_low_gain 3	// 0b0000 0011
+#define voltage_high_gain_mode 0 // 0b0000 0000
+#define voltage_low_gain_mode 1	// 0b0000 0001
+#define current_high_gain_mode 2 // 0b0000 0010
+#define current_low_gain_mode 3	// 0b0000 0011
 
+#define VI_data_ready 4	// All the process complete
+#define Stop_Storing_ADC_data 5
+
+uint8_t VI_measure_status; // Status
 
 /*
  * adc_raw_data -> 2-D Array

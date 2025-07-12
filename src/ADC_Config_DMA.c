@@ -34,16 +34,20 @@ TIM_HandleTypeDef htim2, htim3;
 // Clean the Code Before Build the code
 
 // Private Variable Declaration
-int32_t raw_adc_DMA_data[DMA_ADC_DATA_LENGTH];
-volatile uint8_t adc_read_complete_flag_DMA = 0;
+int32_t buffer_adc_DMA_data[DMA_ADC_DATA_LENGTH];
 
-uint8_t measure_mode_flag = 0;
-volatile uint8_t _VI_measure_mode = 0;
+uint8_t VI_measure_table[] =
+    {voltage_high_gain_mode,
+     voltage_low_gain_mode,
+     current_high_gain_mode,
+     current_low_gain_mode};
+uint8_t VI_measure_index = 0;
+uint8_t one_time_measure = 0;
 
 // Private Function Declaration
 void Timer3_Init_ADC();
 void DMA_Init_ADC();
-void separate_ADC_CH_from_DMA();
+void separate_ADC_CH_from_DMA(const int32_t *_buffer_DMA);
 void Start_ADC_Conversion();
 void Stop_ADC_Conversion();
 // void separate_adc_max_value();
@@ -52,7 +56,7 @@ void GPIO_Init_VI_GS_Pin();
 void Timer2_Init_VI_switch(void);
 void Start_Timer_VI_switch();
 void Stop_Timer_VI_switch();
-void set_measure_mode(uint8_t _mode1);
+void single_sample_cycle(uint8_t _mode1);
 
 void ADC_Init_PA0_PA1();
 extern void Error_Handler(void);
@@ -60,16 +64,17 @@ extern void Error_Handler(void);
 // Function Definition
 void setup_ADC_with_DMA()
 {
+    GPIO_Init_VI_GS_Pin();
     // Initiate ADC with Timer 3
     DMA_Init_ADC();
     ADC_Init_PA0_PA1();
     Timer3_Init_ADC();
+    set_ADC_Measure_window(1000); // 1 KHz
+    Start_ADC_Conversion(); // Trigger the Measurement
+    
 
     // Initiate VI Pin with Timer 2
-    GPIO_Init_VI_GS_Pin();
     Timer2_Init_VI_switch();
-
-    set_ADC_Measure_window(1000); // 1 KHz
     Start_Timer_VI_switch();
 }
 
@@ -90,7 +95,7 @@ void setup_ADC_with_DMA()
 // {
 //     // Release by Windows Reset the following flag
 //     _manual_read_ADC_ = 0;              // Release to normal mode
-//     adc_read_complete_flag_DMA = 0;     // Re-Capture the Reading
+//         // Re-Capture the Reading
 // }
 
 void Timer3_Init_ADC()
@@ -125,9 +130,6 @@ void Timer3_Init_ADC()
 
     // Rest of the Config remains mentioned as
     // void void HAL_TIM_Base_MspInit(TIM_HandleTypeDef *htim_base)
-
-    // Start the Timer3
-    HAL_TIM_Base_Start(&htim3);
 }
 
 void ADC_Init_PA0_PA1()
@@ -216,7 +218,7 @@ void ADC_Init_PA0_PA1()
     // Disable the ADC Interrupt at stm32f1xx_hal_msp.c file
 
     // Start the ADC with DMA
-    // HAL_ADC_Start_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_DATA_LENGTH);
+    // HAL_ADC_Start_DMA(&hadc1, (uint32_t *)buffer_adc_DMA_data, DMA_ADC_DATA_LENGTH);
 
     // Rest of the Config remains mentioned as
     // void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc) placed at stm32f1xx_hal_msp.c file
@@ -259,75 +261,70 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
     }
 
     // After the Windows Reset the following flag
-    adc_read_complete_flag_DMA = 0; // Re-Capture the Reading
+    _VI_cylce = 0; // Re-Capture the Reading
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
     /* For HAL Driver with transfer by DMA:
       ◦ Activate the ADC peripheral and start conversions using function HAL_ADC_Start_DMA()
-      ◦ Wait for ADC conversion completion by call of function HAL_ADC_ConvCpltCallback() or HAL_ADC_ConvHalfCpltCallback() (these functions must be implemented in user program)
-      ◦ Conversion results are automatically transferred by DMA into destination variable address.
-      ◦ Stop conversion and disable the ADC peripheral using function HAL_ADC_Stop_DMA()
+      ◦ Wait for ADC conversion completion by call of function HAL_ADC_ConvCpltCallback()
+             or HAL_ADC_ConvHalfCpltCallback() (these functions must be implemented in user program)
       */
 
     if (hadc->Instance == ADC1)
-        separate_ADC_CH_from_DMA();
+        separate_ADC_CH_from_DMA(buffer_adc_DMA_data);
 }
 
-void separate_ADC_CH_from_DMA()
+void separate_ADC_CH_from_DMA(const int32_t *_buffer_DMA)
 {
+    if (VI_measure_index == Stop_Storing_ADC_data || one_time_measure != 0)
+        return; // exit the function
+
+    // point to the new block of ADC samples
+    const int32_t *adc_buffer = _buffer_DMA;
+
     int16_t PA0_data_temp = 0, PA1_data_temp = 0;
+    uint8_t _col_index = VI_measure_index * 2;
 
     for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
     {
-        PA0_data_temp = (int16_t)(raw_adc_DMA_data[i] & 0xFFFF); // Extract PA0 data
-        PA1_data_temp = (int16_t)(raw_adc_DMA_data[i] >> 16);    // Extract PA1 data
+        PA0_data_temp = (int16_t)(adc_buffer[i] & 0xFFFF); // Extract PA0 data
+        PA1_data_temp = (int16_t)(adc_buffer[i] >> 16);    // Extract PA1 data
 
         // Remove offset value
-        PA0_data_temp -= zero_pad_adc_PA[0];
-        PA1_data_temp -= zero_pad_adc_PA[1];
+        // PA0_data_temp -= zero_pad_adc_PA[0];
+        // PA1_data_temp -= zero_pad_adc_PA[1];
 
-        adc_raw_data[((measure_mode_flag * 2) - 2)][i] = PA0_data_temp;
-        adc_raw_data[((measure_mode_flag * 2) - 1)][i] = PA1_data_temp;
+        adc_raw_data[_col_index][i] = PA0_data_temp;
+        adc_raw_data[_col_index + 1][i] = PA1_data_temp;
 
-        adc_data[((measure_mode_flag * 2) - 2)][i] = adc_volt_convert(PA0_data_temp);
-        adc_data[((measure_mode_flag * 2) - 1)][i] = adc_volt_convert(PA1_data_temp);
+        adc_data[_col_index][i] = adc_volt_convert(PA0_data_temp);
+        adc_data[_col_index + 1][i] = adc_volt_convert(PA1_data_temp);
     }
 
-    // Transfer the Status After Completing
-    adc_read_complete_flag_DMA = measure_mode_flag;
-}
-
-uint8_t get_measure_status()
-{
-    return adc_read_complete_flag_DMA;
+    VI_measure_status = VI_measure_index; // Transfer the status
+    VI_measure_index = Stop_Storing_ADC_data; // To Stop DMA data storing
+    if (_col_index == 6)
+        VI_measure_status = VI_data_ready;
 }
 
 void Start_ADC_Conversion()
 {
-    // Restart the ADC
+    // Start the Timer3
+    HAL_TIM_Base_Start(&htim3);
+    // Start the ADC
     HAL_ADC_Start(&hadc2); // Start ADC2 First
-    HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)raw_adc_DMA_data, DMA_ADC_DATA_LENGTH);
+    HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)buffer_adc_DMA_data, DMA_ADC_DATA_LENGTH);
 }
 
 void Stop_ADC_Conversion()
 {
+    // Start the Timer3
+    HAL_TIM_Base_Stop(&htim3);
     // Stop the ADC
     HAL_ADC_Stop(&hadc2); // Start ADC2 First
     HAL_ADCEx_MultiModeStop_DMA(&hadc1);
-}
-
-uint8_t ADC_recapture_data() // Pointer used to edit in struct value
-{
-    if (get_measure_status() == 4)
-    {
-        adc_read_complete_flag_DMA = 0; // Reset Flag After Copying
-        _VI_measure_mode = 0; // Reset VI Switch Position
-        return 1;                       // Recapture started
-    }
-    else
-        return 0; // Invaild request to Recapture
 }
 
 void GPIO_Init_VI_GS_Pin()
@@ -397,30 +394,42 @@ void Stop_Timer_VI_switch()
     HAL_TIM_Base_Stop_IT(&htim2);
 }
 
-// VI Measure mode controlled by Timer 2 Interrupt
-void set_measure_mode(uint8_t _a_mode1)
+void set_measure_mode(uint8_t measure_mode)
 {
-    uint8_t _mode1 = _a_mode1 / 2;
-    if (_a_mode1 % 2 == 0)
+    // +--------------------------+-------------------------+
+    // | 0 - GS - LOW - High Gain | 0 - VI - LOW - Voltage  |
+    // | 1 - GS - HIGH - Low Gain | 1 - VI - HIGH - Current |
+    // +--------------------------+-------------------------+
+    // +------2nd bit is GS-------+-------1st bit is VI-----+
+    // +---------------------([GS] [VI])--------------------+
+
+    // Only Accept - Start - 0(00) to Stop  - 3(11)
+    if (measure_mode >= 0 && measure_mode <= 3)
     {
-        if (_mode1 >= 0 && _mode1 <= 3)
-        {
-            HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, (_mode1 & 2) ? HIGH : LOW); // 2nd bit
-            HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, (_mode1 & 1) ? HIGH : LOW); // 1st bit
-        }
+        HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, (measure_mode & 2) ? HIGH : LOW); // 2nd bit of LSB
+        HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, (measure_mode & 1) ? HIGH : LOW); // 1st bit of LSB
+    }
+}
+
+// VI Measure mode controlled by Timer 2 Interrupt
+void single_sample_cycle(uint8_t _cycle)
+{
+    uint8_t _mode1 = _cycle / 2;
+    if (_cycle % 2 == 0)
+    {
+        set_measure_mode(VI_measure_table[_mode1]);
     }
     else
     {
-        measure_mode_flag = _mode1 + 1;
-        Start_ADC_Conversion(); // Trigger the Measurement
+        VI_measure_index = _mode1; // Start_ADC_Conversion(); Not required
     }
 }
 
 void On_Timer2_Interrupt()
 {
-    if (_VI_measure_mode <= 7)
+    if (_VI_cylce <= 7)
     {
-        set_measure_mode(_VI_measure_mode);
-        _VI_measure_mode++;
+        single_sample_cycle(_VI_cylce);
+        _VI_cylce++;
     }
 }
