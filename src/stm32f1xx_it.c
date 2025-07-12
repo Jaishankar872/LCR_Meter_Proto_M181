@@ -55,7 +55,7 @@
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
 extern void On_EXTI15_10_Interrupt(uint16_t GPIO_Pin);
-extern void On_Timer1_Interrupt();
+extern void On_Timer3_Interrupt();
 extern void On_Timer2_Interrupt();
 
 /* USER CODE END PFP */
@@ -70,6 +70,7 @@ extern DMA_HandleTypeDef hdma_adc1;
 extern ADC_HandleTypeDef hadc1, hadc2;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
@@ -286,6 +287,20 @@ void TIM2_IRQHandler(void)
 }
 
 /**
+ * @brief This function handles TIM2 global interrupt.
+ */
+void TIM3_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM3_IRQn 0 */
+
+  /* USER CODE END TIM3_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim3);
+  /* USER CODE BEGIN TIM3_IRQn 1 */
+
+  /* USER CODE END TIM3_IRQn 1 */
+}
+
+/**
  * @brief This function handles USART1 global interrupt.
  */
 void USART1_IRQHandler(void)
@@ -329,8 +344,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 /* USER CODE BEGIN 1 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  if (htim->Instance == TIM1)
-    On_Timer1_Interrupt();
+  if (htim->Instance == TIM3)
+    On_Timer3_Interrupt();
   if (htim->Instance == TIM2)
     On_Timer2_Interrupt();
 }

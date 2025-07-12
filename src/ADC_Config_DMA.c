@@ -312,7 +312,7 @@ void separate_ADC_CH_from_DMA(const int32_t *_buffer_DMA)
 void Start_ADC_Conversion()
 {
     // Start the Timer3
-    HAL_TIM_Base_Start(&htim3);
+    HAL_TIM_Base_Start_IT(&htim3);
     // Start the ADC
     HAL_ADC_Start(&hadc2); // Start ADC2 First
     HAL_ADCEx_MultiModeStart_DMA(&hadc1, (uint32_t *)buffer_adc_DMA_data, DMA_ADC_DATA_LENGTH);
@@ -321,7 +321,7 @@ void Start_ADC_Conversion()
 void Stop_ADC_Conversion()
 {
     // Start the Timer3
-    HAL_TIM_Base_Stop(&htim3);
+    HAL_TIM_Base_Stop_IT(&htim3);
     // Stop the ADC
     HAL_ADC_Stop(&hadc2); // Start ADC2 First
     HAL_ADCEx_MultiModeStop_DMA(&hadc1);

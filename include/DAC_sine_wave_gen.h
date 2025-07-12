@@ -16,8 +16,7 @@
 
 // Public Function Declaration
 void sine_wave_setup();
-void set_sine_wave_frequency(uint16_t _set_frequency);
-void On_Timer1_Interrupt();
+void On_Timer3_Interrupt();
 void manual_ctrl_DAC(uint8_t _dac_output);
 void release_manual_ctrl_DAC();
 

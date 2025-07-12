@@ -122,7 +122,6 @@ void system_setup()
   process_data.uart_all_print_DSO = 1; // Default Mode
   process_data.LCR_Mode = 2;           // Default Mode - Capacitance
   // Update
-  set_sine_wave_frequency(process_data.set_freq);
   set_ADC_Measure_window(process_data.set_freq);
   // Display
   screen1_home_print(process_data);
@@ -136,7 +135,6 @@ void system_loop()
   {
 
     // Set the based on the data
-    set_sine_wave_frequency(process_data.set_freq);
     set_ADC_Measure_window(process_data.set_freq);
 
     // Update the display
@@ -239,12 +237,12 @@ void zero_padding_value()
 
     manual_ctrl_DAC(127);
     HAL_Delay(_each_delay);
-    manual_read_ADC(); // Just call, skip inital buffer [Revisit Again....]
+    // manual_read_ADC(); // Just call, skip inital buffer [Revisit Again....]
     HAL_Delay(_each_delay);
 
     for (int n = 0; n < _length; n++)
     {
-      manual_read_ADC();
+      // manual_read_ADC();
       HAL_Delay(_each_delay);
 
       _adc_avg_data[0] += zero_pad_adc_PA[0];
@@ -255,7 +253,7 @@ void zero_padding_value()
 
     printf("Average \r\n %d - %.3f, %d - %.3f\r\n", zero_pad_adc_PA[0], adc_volt_convert(zero_pad_adc_PA[0]),
            zero_pad_adc_PA[1], adc_volt_convert(zero_pad_adc_PA[1]));
-    release_manual_read_ADC();
+    // release_manual_read_ADC();
     release_manual_ctrl_DAC();
   }
   else
