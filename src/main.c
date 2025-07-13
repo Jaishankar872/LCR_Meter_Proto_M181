@@ -21,9 +21,6 @@
 #include "DSP_data.h"
 #include "crc.h" // For UART
 
-// TIM_HandleTypeDef htim2;
-// TIM_HandleTypeDef htim3;
-
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
 
@@ -144,6 +141,7 @@ void system_loop()
   process_data.adc_measure_status = VI_measure_index;
   if (process_data.adc_measure_status == VI_data_ready)
   {
+    LED_control(0);
     // First Process the data
     // ->Display value
     // process_data_via_DSP(&process_data);
@@ -218,8 +216,10 @@ void system_loop()
     }
     // Restart the Data capture
     // process_data_via_DSP(&process_data);
-    VI_measure_index = 0; // Reset
     HAL_Delay(100); // Pause for a moment
+
+    VI_measure_index = 0; // Reset
+    LED_control(1);
   }
   else
   {

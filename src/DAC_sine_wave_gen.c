@@ -14,9 +14,6 @@
 // Include Header Files
 #include "stm32f1xx_hal_tim.h"
 
-// Timer
-TIM_HandleTypeDef htim1;
-
 // Private Variables
 
 // DAC Config
@@ -91,7 +88,6 @@ void DAC_analogWrite_B0_B7(uint8_t _dat1)
 
 void manual_ctrl_DAC(uint8_t _dac_output) // DAC Supports input from [0 to 255] only
 {
-    HAL_TIM_Base_Stop_IT(&htim1); // Stop Timer 1 Interrupt
     DAC_analogWrite_B0_B7(_dac_output);
 }
 

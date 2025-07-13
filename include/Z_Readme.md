@@ -27,21 +27,10 @@ project_root/
 * This NOT is a output pin with neither LOW nor HIGH.
 
 ## Interrupt Scheme
-### Timer 1 Interrupt
-  Generator Sine Wave via digital pin PB0 to PB7.
-  Timer Specs 
-   - Prescaler: 2
-   - Interval: (1/frequency)*(1/100)
-### Timer 2 Interrupt
-  VI Measurement toggle switch.
-  Timer Specs 
-   - Prescaler: 72000
-   - Interval: 250ms
 ### Timer 3 Interrupt
-  To trigger ADC start measurement via TGRO in ADC. 
-  Timer Specs 
-   - Prescaler: 8
-   - Interval: (1/frequency)*(1/40)
+  1. Generator Sine Wave via digital pin PB0 to PB7.
+  2. To trigger ADC start measurement via TGRO in ADC. 
+
 ### ADC conversion Interrupt
   To store the ADC measured data respective variable array.
   Controlled via Timer 3 Interrupt.

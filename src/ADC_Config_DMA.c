@@ -21,7 +21,7 @@
 // Private Variable Declaration
 ADC_HandleTypeDef hadc1, hadc2;
 DMA_HandleTypeDef hdma_adc1;
-TIM_HandleTypeDef htim2, htim3;
+TIM_HandleTypeDef htim3;
 
 #define GS_Pin GPIO_PIN_6
 #define GS_pin_GPIO_Port GPIOA

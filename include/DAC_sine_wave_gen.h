@@ -2,7 +2,6 @@
  * @file DAC_sine_wave_gen.h
  * @brief DAC Sine Wave Generator
  * This file contains the function definition for DAC Sine Wave Generator
- * Via Timer 1 Interrupt
  * 
  * @author Jaishankar M
  */
