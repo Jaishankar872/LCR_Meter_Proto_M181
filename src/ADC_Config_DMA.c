@@ -62,14 +62,17 @@ extern void Error_Handler(void);
 // Function Definition
 void setup_ADC_with_DMA()
 {
+    // Clear the variables
+    VI_measure_index = 0;
+    adc_sample_count = 0;
+    //------
+
     GPIO_Init_VI_GS_Pin();
     DMA_Init_ADC();
     ADC_Init_PA0_PA1();
     Timer3_Init_ADC();
     set_ADC_Measure_window(1000); // 1 KHz
 
-    VI_measure_index = 0;
-    adc_sample_count = 0;
     Start_ADC_Conversion(); // Trigger the Measurement
 }
 
@@ -237,6 +240,7 @@ void set_ADC_Measure_window(uint16_t _measure_frequency)
 
     // After the Windows Reset the following flag
     VI_measure_index = 0;
+    adc_sample_count = 0;
 }
 
 // void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
@@ -281,7 +285,7 @@ void separate_ADC_CH_from_DMA(const t_adc_dma_data_16 *_buffer_DMA)
     // Next measure mode
     VI_measure_index++;
     if (VI_measure_index < VI_data_ready)
-    set_measure_mode(VI_measure_table[VI_measure_index]);
+        set_measure_mode(VI_measure_table[VI_measure_index]);
 
     adc_sample_count = 0;
 }
@@ -321,8 +325,7 @@ void GPIO_Init_VI_GS_Pin()
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     // Set to Voltage Measurement Mode
-    // HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, 0);
-    // HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, 1);
+    set_measure_mode(VI_measure_table[VI_measure_index]);
 }
 
 void set_measure_mode(uint8_t measure_mode)
