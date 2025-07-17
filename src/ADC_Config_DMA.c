@@ -274,13 +274,24 @@ void separate_ADC_CH_from_DMA(const t_adc_dma_data_16 *_buffer_DMA)
     {
         for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
         {
-            adc_raw_data[_col_index][i] = adc_buffer[i].adc;
-            adc_raw_data[_col_index + 1][i] = adc_buffer[i].afc;
+            buffer_adc_avg[i].adc += adc_buffer[i].adc - 2048;
+            buffer_adc_avg[i].afc += adc_buffer[i].afc - 2048;
         }
     }
 
     if (adc_sample_count < (adc_sample_count_len + adc_sample_skip_count))
         return;
+
+    // Process Average data
+    for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
+    {
+        adc_raw_data[_col_index][i] = buffer_adc_avg[i].adc / adc_sample_count_len;
+        adc_raw_data[_col_index + 1][i] = buffer_adc_avg[i].afc / adc_sample_count_len;
+
+        // Reset the buffer
+        buffer_adc_avg[i].adc = 0;
+        buffer_adc_avg[i].afc = 0;
+    }
 
     // Next measure mode
     VI_measure_index++;

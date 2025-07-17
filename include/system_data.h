@@ -66,7 +66,7 @@ uint8_t VI_measure_index;
 #define no_of_sine_wave_cycle_per_data 2
 
 #define ADC_Block_skip_count 32
-#define ADC_Block_avg_count 1
+#define ADC_Block_avg_count 32
  // 1 = just one block = no averaging
 
 

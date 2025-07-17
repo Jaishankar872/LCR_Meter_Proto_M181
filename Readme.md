@@ -3,7 +3,9 @@
 
 **Note**: Still this firmware under development.
 
-Other option: [By OneofEleven](https://github.com/OneOfEleven/M181-LCR-Meter-Firmware)
+*****
+**Other option** [by OneofEleven](https://github.com/OneOfEleven/M181-LCR-Meter-Firmware)
+*****
 
 ## Hardware - M181 LCR Meter 
 - Official product page link [here](https://jyetech.com/m181-lcr-meter/)
