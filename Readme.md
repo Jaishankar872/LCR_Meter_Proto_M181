@@ -1,18 +1,27 @@
+
 # Goal
    To Develop only the Firmware for M181 LCR Meter made by JyeTech. Hope to provide understanding in basics of LCR Meter.
 
-**Note**: Still this firmware under development.
+*****
+**Note**
+ - This firmware is still under development.
+ - For a fully reworked version, please refer to the firmware at [OneOfEleven/M181-LCR-Meter-Firmware](https://github.com/OneOfEleven/M181-LCR-Meter-Firmware).
 
 *****
-**Other option** [by OneofEleven](https://github.com/OneOfEleven/M181-LCR-Meter-Firmware)
-*****
+## Current Status
+- [x] Reverse Engineer the schematics and document notes
+- [ ] Prepare a LTspice simulation.  <<< Reworking.
+- [x] Basic driver layer prepare used STM32Cube.
+- [x] Solve by noise problem in ADC captured data >>> (**Temp) Average 
+- [ ] Add Low Filter and DC block <<< Working here.
+- [ ] Calculate amplitude and phase difference of Volt, Current.
+- [ ] LCR forumla implementation with Mode option
+- [ ] Save the settings option in MCU memory
+- [ ] Calibration mechanism 
 
 ## Hardware - M181 LCR Meter 
 - Official product page link [here](https://jyetech.com/m181-lcr-meter/)
 - I have purchased from Banggood, buying link is [here](https://www.banggood.in/Jyetech-M181-LCR-Meter-18101K-DIY-Kit-100Hz-1KHz-Test-Frequency-High-precision-Small-Value-Inductance-Resistance-and-Capacitance-Measurement-Module-reviews-p2017117.html)
-
-# Tasks to be completed
-- [ ] TBD
 
 # System Overview
 ## MCU programming
