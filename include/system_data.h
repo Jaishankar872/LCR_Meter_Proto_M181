@@ -91,16 +91,6 @@ uint8_t VI_measure_index;
 
 uint8_t VI_measure_status; // Status
 
-#define pos_volt_a 0
-#define pos_volt_AFC_a 1
-#define pos_amp_a 2
-#define pos_amp_AFC_a 3
-
-#define pos_volt_b 4
-#define pos_volt_AFC_b 5
-#define pos_amp_b 6
-#define pos_amp_AFC_b 7
-
 // Gain Selector Variable
 // Gain A - 0
 // Gain B - 1
