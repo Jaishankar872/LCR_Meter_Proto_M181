@@ -56,7 +56,7 @@ typedef struct
 
 // #define UART_BAUDRATE              115200
 // #define UART_BAUDRATE                230400
-#define UART_BAUDRATE 921600
+#define UART_BAUDRATE 115200
 #define PACKET_MARKER 0x19621996
 
 // ADC Config
@@ -82,9 +82,9 @@ uint8_t VI_measure_index;
 // +---------------------([GS] [VI])--------------------+
 
 #define voltage_high_gain_mode 0 // 0b0000 0000
-#define voltage_low_gain_mode 1	// 0b0000 0001
-#define current_high_gain_mode 2 // 0b0000 0010
-#define current_low_gain_mode 3	// 0b0000 0011
+#define current_high_gain_mode 1 // 0b0000 0001
+#define voltage_low_gain_mode 2  // 0b0000 0010
+#define current_low_gain_mode 3	 // 0b0000 0011
 
 #define VI_data_ready 4	// All the process complete
 #define Stop_Storing_ADC_data 5
@@ -92,8 +92,6 @@ uint8_t VI_measure_index;
 uint8_t VI_measure_status; // Status
 
 // Gain Selector Variable
-// Gain A - 0
-// Gain B - 1
 int8_t volt_gain_sel, amp_gain_sel;
 
 int16_t adc_raw_data[8][DMA_ADC_DATA_LENGTH];

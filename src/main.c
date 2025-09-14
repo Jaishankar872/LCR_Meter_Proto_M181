@@ -37,30 +37,6 @@ void zero_padding_value();
 
 system_data process_data; // From file name "system_data.h"
 
-// [Temporary] For UART
-
-#pragma pack(push, 1)
-typedef struct
-{
-  union
-  {
-    uint32_t marker;
-    uint8_t marker_b[sizeof(uint32_t)];
-  };
-  union
-  {
-    uint16_t crc;
-    uint8_t crc_b[sizeof(uint16_t)];
-  };
-  union
-  {
-    float data[DMA_ADC_DATA_LENGTH * 8];
-    uint8_t data_b[sizeof(float) * DMA_ADC_DATA_LENGTH * 8];
-  };
-} t_packet;
-#pragma pack(pop)
-t_packet tx_packet;
-
 int _write(int file, char *ptr, int len)
 {
   // HAL_UART_Transmit(&huart1, (uint8_t *)ptr, len, 1000);
@@ -164,7 +140,9 @@ void system_loop()
         if (AGC_mode_print)
           _channel_count = 4;
 
-        // Print Pattern - S.No, Volt, AFC, Current, AFC;
+        // Print Pattern (AFC - Next to Volt/Current)
+        // Normal Mode - S.No, Volt High, Volt Low, Current High, Current Low
+        // AGC Mode    - S.No, Volt, Current;
         for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
         {
           printf("%d,", i + 1);
@@ -173,12 +151,14 @@ void system_loop()
             int col_pos = col;
             if (AGC_mode_print)
             {
-              // Voltage
-              if (col_pos <= 1)
-                col_pos = (volt_gain_sel * 4) + col_pos;
-              // Current
-              else if (col_pos <= 3)
-                col_pos = (amp_gain_sel * 4) + col_pos;
+              if (col_pos == 0)
+                col_pos = volt_gain_sel * 2; // Voltage
+              else if (col_pos == 1)
+                col_pos = (volt_gain_sel * 2) + 1; // AFC
+              if (col_pos == 2)
+                col_pos = amp_gain_sel * 2; // Current
+              else if (col_pos == 3)
+                col_pos = (amp_gain_sel * 2) + 1; // AFC
             }
             if (col != (_channel_count - 1))
               printf("%d,", adc_raw_data[col_pos][i]);

@@ -269,7 +269,7 @@ void separate_ADC_CH_from_DMA(const t_adc_dma_data_16 *_buffer_DMA)
     // point to the new block of ADC samples
     const t_adc_dma_data_16 *adc_buffer = _buffer_DMA;
 
-    uint8_t _col_index = VI_measure_index * 2;
+    uint8_t _col_index = VI_measure_table[VI_measure_index] * 2;
     if (adc_sample_count > adc_sample_skip_count)
     {
         for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
@@ -351,8 +351,8 @@ void set_measure_mode(uint8_t measure_mode)
     // Only Accept - Start - 0(00) to Stop  - 3(11)
     if (measure_mode >= 0 && measure_mode <= 3)
     {
-        GPIO_PinState _VI_state = (measure_mode & 2) ? GPIO_PIN_SET : GPIO_PIN_RESET; // 2nd bit of LSB
-        GPIO_PinState _GS_state = (measure_mode & 1) ? GPIO_PIN_SET : GPIO_PIN_RESET; // 1st bit of LSB
+        GPIO_PinState _GS_state = (measure_mode & 2) ? GPIO_PIN_SET : GPIO_PIN_RESET; // 2nd bit of LSB
+        GPIO_PinState _VI_state = (measure_mode & 1) ? GPIO_PIN_SET : GPIO_PIN_RESET; // 1st bit of LSB
         HAL_GPIO_WritePin(VI_pin_GPIO_Port, VI_Pin, _VI_state);
         HAL_GPIO_WritePin(GS_pin_GPIO_Port, GS_Pin, _GS_state);
     }
