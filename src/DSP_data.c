@@ -101,39 +101,39 @@ void process_data_via_DSP(system_data *_adc_data)
     _adc_data->rms_current = adc_volt_convert((float)rms_value_all_ch[(amp_gain_sel * 2)]);
     _adc_data->rms_AFC_current = adc_volt_convert((float)rms_value_all_ch[(amp_gain_sel * 2) + 1]);
 
+    // [Temp]Current value alone wrong as per partical
+    _adc_data->rms_current /= 1.7;
+
     // Impedance Calculated
     _adc_data->impedance = _adc_data->rms_voltage / _adc_data->rms_current;
 
     // Applying the correction Factor - Manually
-    if (volt_gain_sel == voltage_high_gain_mode)
-        _adc_data->impedance /= 101;
-    if (amp_gain_sel == current_low_gain_mode)
-        _adc_data->impedance *= (101 * 1.017);
-    else
-        _adc_data->impedance *= 0.874;
-
-    // 2. Phase
-    float _phase_diff_temp = 0;
+    float Amplifier_gain = 101.0f * 1.017f;
     // Voltage
-    _phase_diff_temp = LCR_calc_data[volt_gain_sel * 2].phase - LCR_calc_data[(volt_gain_sel * 2) + 1].phase;
-    if (_phase_diff_temp < 0)
-        _phase_diff_temp *= -1;
-    _adc_data->voltage_phase = _phase_diff_temp;
+    if (volt_gain_sel == voltage_low_gain_mode)
+        _adc_data->impedance /= Amplifier_gain;
+    // Current Comp
+    if (amp_gain_sel == current_low_gain_mode)
+        _adc_data->impedance *= Amplifier_gain;
+    // else
+    //     _adc_data->impedance *= 0.874;
 
-    // Current
-    _phase_diff_temp = LCR_calc_data[amp_gain_sel * 2].phase - LCR_calc_data[(amp_gain_sel * 2) + 1].phase;
-    if (_phase_diff_temp < 0)
-        _phase_diff_temp *= -1;
-    _phase_diff_temp -= 180;
-    if (_phase_diff_temp < 0)
-        _phase_diff_temp *= -1;
-    _adc_data->current_phase = _phase_diff_temp;
+    // 2. Phase calculations
+    float v_phase = LCR_calc_data[volt_gain_sel * 2].phase;
+    float v_ref_phase = LCR_calc_data[(volt_gain_sel * 2) + 1].phase;
+    float i_phase = LCR_calc_data[amp_gain_sel * 2].phase;
+    float i_ref_phase = LCR_calc_data[(amp_gain_sel * 2) + 1].phase;
 
-    // Phase calculation for voltage & current
-    _phase_diff_temp = _adc_data->voltage_phase - _adc_data->current_phase;
-    if (_phase_diff_temp < 0)
-        _phase_diff_temp *= -1;
-    _adc_data->VI_phase = _phase_diff_temp;
+    // Calculate relative phases (preserving sign)
+    _adc_data->voltage_phase = fmodf(v_phase - v_ref_phase + 360.0f, 360.0f);
+    _adc_data->current_phase = fmodf(i_phase - i_ref_phase + 360.0f, 360.0f);
+    _adc_data->current_phase -= 180.0f; // Subtract the Trans-impedance Amplifier phase
+
+    // Calculate V-I phase difference (preserving sign)
+    float phase_diff = _adc_data->voltage_phase - _adc_data->current_phase;
+    if (phase_diff < 0) // To remove Negative sign
+        phase_diff *= -1;
+    _adc_data->VI_phase = phase_diff;
 
     _adc_data->esr = LCR_calculation(3, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase);       // ESR
     _adc_data->tan_delta = LCR_calculation(4, _adc_data->set_freq, _adc_data->impedance, _adc_data->VI_phase); // Tan Delta calculation
@@ -199,20 +199,27 @@ void goertzel_process(settings_goertzel *g_buffer, int16_t *data, calc_goertzel 
 
 float calculate_rms_amplitude(int16_t *data_in, int16_t _dat_len)
 {
-    double sum_sq_raw = {0};
-    double rms_val_raw = {0};
+    double mean = 0.0;
+    double sum_sq = 0.0;
     int n = _dat_len;
 
-    // Accumulate squared deviations
+    // // First pass: Calculate mean (DC offset) - Optional
+    // double sum = 0.0;
+    // for (int i = 0; i < n; i++)
+    // {
+    //     sum += data_in[i];
+    // }
+    // mean = sum / n;
+
+    // Second pass: Calculate RMS with DC offset removed
     for (int i = 0; i < n; i++)
     {
-        sum_sq_raw += data_in[i] * data_in[i];
+        double ac_value = data_in[i] - mean;
+        sum_sq += ac_value * ac_value;
     }
 
-    // Calculate RMS
-    rms_val_raw = sqrt(sum_sq_raw / n);
-    rms_val_raw *=no_of_sine_wave_cycle_per_data; 
-    return (float)rms_val_raw;
+    // Calculate true RMS value
+    return (float)sqrt(sum_sq / n);
 }
 
 float adc_volt_convert(int16_t raw_adc)
