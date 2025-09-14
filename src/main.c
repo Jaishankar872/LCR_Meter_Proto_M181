@@ -144,7 +144,7 @@ void system_loop()
     LED_control(0);
     // First Process the data
     // ->Display value
-    // process_data_via_DSP(&process_data);
+    process_data_via_DSP(&process_data);
 
     // Update the display
     screen1_home_print(process_data);
@@ -156,67 +156,40 @@ void system_loop()
         //
         // send the sampled data down the serial link
 
-#ifdef MATLAB_SERIAL
         // send as ASCII
+        uint8_t AGC_mode_print = 0;
+        const int _print_delay = 3; // Milli Seconds
 
-        const int _print_delay = 5; // Milli Seconds
-        const int _channel_count = 8;
+        int _channel_count = 8;
+        if (AGC_mode_print)
+          _channel_count = 4;
+
+        // Print Pattern - S.No, Volt, AFC, Current, AFC;
         for (int i = 0; i < DMA_ADC_DATA_LENGTH; i++)
         {
           printf("%d,", i + 1);
           for (int col = 0; col < _channel_count; col++)
           {
+            int col_pos = col;
+            if (AGC_mode_print)
+            {
+              // Voltage
+              if (col_pos <= 1)
+                col_pos = (volt_gain_sel * 4) + col_pos;
+              // Current
+              else if (col_pos <= 3)
+                col_pos = (amp_gain_sel * 4) + col_pos;
+            }
             if (col != (_channel_count - 1))
-              printf("%d,", adc_raw_data[col][i]);
+              printf("%d,", adc_raw_data[col_pos][i]);
             else
-              printf("%d\r\n", adc_raw_data[col][i]);
+              printf("%d\r\n", adc_raw_data[col_pos][i]);
           }
           HAL_Delay(_print_delay);
         }
-#else
-        // send as binary packet
-
-        // STM32's are little endian (data is LS-Byte 1st)
-        // the receiving end needs to take that into account when processing the rx'ed data
-        // your receiving app can use htons(), htonl(), ntohs(), ntohl() to swap endianness (if need be)
-
-        // create TX packet
-        tx_packet.marker = PACKET_MARKER;                    // packet start marker
-        memcpy(tx_packet.data, &adc_data, sizeof(adc_data)); // packet data
-
-#ifdef UART_BIG_ENDIAN
-                                                             // make the packet values BIG endian
-        // though the receivng end (your PC etc) is the one that needs to be dealing with this, not us
-
-        tx_packet.marker = __builtin_bswap32(tx_packet.marker);
-
-        uint32_t *pd = (uint32_t *)tx_packet.data;
-        for (unsigned int i = 0; i < (sizeof(adc_data) / sizeof(uint32_t)); i++, pd++)
-          *pd = __builtin_bswap32(*pd);
-#endif
-
-        tx_packet.crc = CRC16_block(0, tx_packet.data, sizeof(tx_packet.data)); // packet CRC - compute the CRC of the data
-
-#ifdef UART_BIG_ENDIAN
-                                                                                // make the packet CRC little endian
-        tx_packet.crc = __builtin_bswap16(tx_packet.crc);
-#endif
-
-#if 0
-							// start sending the packet (wait here for upto 200ms until it does start)
-							const uint32_t tick = HAL_GetTick();
-							while (HAL_BUSY == HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet)) && (HAL_GetTick() - tick) < 200)
-								__WFI();    // wait until next interrupt occurs
-#else
-        // don't hang around waiting for the send to start
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t *)&tx_packet, sizeof(tx_packet));
-#endif
-#endif
       }
     }
-    // Restart the Data capture
-    // process_data_via_DSP(&process_data);
-    HAL_Delay(100); // Pause for a moment
+    HAL_Delay(10); // Pause for a moment
 
     VI_measure_index = 0; // Reset
     LED_control(1);
