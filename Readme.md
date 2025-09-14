@@ -10,11 +10,11 @@
 *****
 ## Current Status
 - [x] Reverse Engineer the schematics and document notes
-- [ ] Prepare a LTspice simulation.  <<< Reworking.
+- [x] Prepare a LTspice simulation.  <<< [Done].
 - [x] Basic driver layer prepare used STM32Cube.
-- [x] Solve by noise problem in ADC captured data >>> (**Temp) Average 
-- [ ] Add Low Filter and DC block <<< Working here.
-- [ ] Calculate amplitude and phase difference of Volt, Current.
+- [x] Solve by noise problem in ADC captured data >>> [Done] Via Goertzel
+- [x] Add Low Filter and DC block <<< [Done] Goertzel + Avg.
+- [ ] Calculate amplitude and phase difference of Volt, Current <<< Amplitude is Pending
 - [ ] LCR forumla implementation with Mode option
 - [ ] Save the settings option in MCU memory
 - [ ] Calibration mechanism 
