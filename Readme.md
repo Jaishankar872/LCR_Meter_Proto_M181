@@ -14,8 +14,8 @@
 - [x] Basic driver layer prepare used STM32Cube.
 - [x] Solve by noise problem in ADC captured data >>> [Done] Via Goertzel
 - [x] Add Low Filter and DC block <<< [Done] Goertzel + Avg.
-- [ ] Calculate amplitude and phase difference of Volt, Current <<< Amplitude is Pending
-- [ ] LCR forumla implementation with Mode option
+- [x] Calculate amplitude and phase difference of Volt, Current 
+- [ ] LCR forumla implementation with Mode option <<< Basic option Added
 - [ ] Save the settings option in MCU memory
 - [ ] Calibration mechanism 
 

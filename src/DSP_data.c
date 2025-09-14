@@ -34,12 +34,9 @@ typedef struct
 settings_goertzel LCR_setup = {0};
 calc_goertzel LCR_calc_data[8];
 
+// Global array to store RMS values for all 8 ADC channels
+// Index mapping: [0-1]: Voltage channels, [2-3]: AFC Voltage, [4-5]: Current channels, [6-7]: AFC Current
 float rms_value_all_ch[8];
-
-int16_t max_adc_Volt = 0, min_adc_Volt = 4096;
-int16_t max_adc_Volt_AFC = 0, min_adc_Volt_AFC = 4096;
-int16_t max_adc_Current = 0, min_adc_Current = 4096;
-int16_t max_adc_Current_AFC = 0, min_adc_Current_AFC = 4096;
 
 int16_t _phase_offset_array_index = 0;
 
@@ -81,7 +78,7 @@ void process_data_via_DSP(system_data *_adc_data)
         goertzel_process(&LCR_setup, adc_raw_data[col], &LCR_calc_data[col]);
         // For Amplitude--------------------------------
         rms_value_all_ch[col] = calculate_rms_amplitude(adc_raw_data[col], DMA_ADC_DATA_LENGTH);
-        // rms_value_all_ch[col] = LCR_calc_data->amp;
+        // rms_value_all_ch[col] = LCR_calc_data[col].amp;
     }
 
     // Automatic Gain Selection
@@ -100,9 +97,6 @@ void process_data_via_DSP(system_data *_adc_data)
     _adc_data->rms_AFC_volt = adc_volt_convert((float)rms_value_all_ch[(volt_gain_sel * 2) + 1]);
     _adc_data->rms_current = adc_volt_convert((float)rms_value_all_ch[(amp_gain_sel * 2)]);
     _adc_data->rms_AFC_current = adc_volt_convert((float)rms_value_all_ch[(amp_gain_sel * 2) + 1]);
-
-    // [Temp]Current value alone wrong as per partical
-    _adc_data->rms_current /= 1.7;
 
     // Impedance Calculated
     _adc_data->impedance = _adc_data->rms_voltage / _adc_data->rms_current;
@@ -203,13 +197,13 @@ float calculate_rms_amplitude(int16_t *data_in, int16_t _dat_len)
     double sum_sq = 0.0;
     int n = _dat_len;
 
-    // // First pass: Calculate mean (DC offset) - Optional
-    // double sum = 0.0;
-    // for (int i = 0; i < n; i++)
-    // {
-    //     sum += data_in[i];
-    // }
-    // mean = sum / n;
+    // First pass: Calculate mean (DC offset)
+    double sum = 0.0;
+    for (int i = 0; i < n; i++)
+    {
+        sum += data_in[i];
+    }
+    mean = sum / n;
 
     // Second pass: Calculate RMS with DC offset removed
     for (int i = 0; i < n; i++)
@@ -222,14 +216,19 @@ float calculate_rms_amplitude(int16_t *data_in, int16_t _dat_len)
     return (float)sqrt(sum_sq / n);
 }
 
+#define ADC_REF_VOLTAGE 3.3f
+#define ADC_RESOLUTION  4096U  // 12-bit ADC
+
 float adc_volt_convert(int16_t raw_adc)
 {
-    int16_t adc_res = 4096;
-    float adc_ref = 3.3;
-    float volt_reading1 = 0;
-    volt_reading1 = (float)adc_ref * raw_adc;
-    volt_reading1 /= adc_res;
-    return volt_reading1;
+    // Guard against division by zero (should never happen with constant)
+    if (ADC_RESOLUTION == 0) {
+        return 0.0f;  // Return safe value
+    }
+    
+    // Cast to float before multiplication to prevent integer overflow
+    // Then divide by resolution to get voltage
+    return (ADC_REF_VOLTAGE * (float)raw_adc) / (float)ADC_RESOLUTION;
 }
 
 float LCR_calculation(uint8_t _mode, uint16_t _freq, float _impedance, float _phase)
