@@ -76,4 +76,5 @@ VI - HIGH, GS - LOW not happening during short circuit
 
 # Detailed Wiki Page
 
- **Further details will be added in [Wiki page](https://docs.jaidb.in/m181_lcr/Home/)**
+ **Further details will be added in [Wiki page](https://docs.jaidb.in/m181_lcr)**
+
